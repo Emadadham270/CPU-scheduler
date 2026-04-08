@@ -10,6 +10,7 @@ typedef struct processData
     int priority;
 } processData;
 
+// processes queue
 typedef struct Node
 {
     processData data;
