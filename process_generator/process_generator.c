@@ -77,15 +77,15 @@ int main(int argc, char *argv[])
     {
         if (type == 1)
         {
-            execl("outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
+            execl("../outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
         }
         else if (type == 2)
         {
-            execl("outFiles/scheduler.out", "scheduler.out", tStr, NULL);
+            execl("../outFiles/scheduler.out", "scheduler.out", tStr, NULL);
         }
         else if (type == 3)
         {
-            execl("outFiles/scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
+            execl("../outFiles/scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
         }
 
         perror("scheduler execl failed");
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
     if (pid == 0)
     {
 
-        execl("outFiles/clk.out", "clk.out", NULL);
+        execl("../outFiles/clk.out", "clk.out", NULL);
         perror("clk execl failed");
         exit(1);
     }
@@ -131,6 +131,13 @@ int main(int argc, char *argv[])
         lastTime = currentTime;
     }
 
+    // terminating process
+    processData p;
+    p.mtype = 5;
+    if (msgsnd(msgq_id, &p, sizeof(processData) - sizeof(long), 0) == -1)
+    {
+        perror("Error in msgsnd");
+    }
     freeQueue(q);
     // wait(NULL);
     // wait(NULL);
