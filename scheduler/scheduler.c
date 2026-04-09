@@ -2,9 +2,11 @@
 #include "scheduler.h"
 #include "../data_structures/PCB/Sch_PCB.h"
 int receivingProcesses=1;
+int context_switch=0;
 Queue* readyQueue;
 struct PBC* currProcess=NULL; 
-int quantum,N,M;
+int quantum,N,M,current_time;
+
 int main(int argc, char * argv[])
 {
     key_t key_id;
@@ -14,7 +16,7 @@ int main(int argc, char * argv[])
     if (msgq_id == -1)
     {
         perror("Error in receive message queue");
-        exit(-1);
+        exit(1);
     }
     struct processData process;
     readyQueue=createQueue();
@@ -35,16 +37,43 @@ int main(int argc, char * argv[])
     initClk();
     while(!isEmpty(readyQueue) || receivingProcesses || currProcess)
     {
-        process=receive(msgq_id);
-        if(process.mtype==5)
-            receivingProcesses=0;
-        else
-        {
-           struct PCB *pcb=convert(process); 
+        current_time = getClk();
+        while (!isEmpty(readyQueue)&& peek(readyQueue)->p.arrival==getClk())
+        {  
+           process=receive(msgq_id);
+           if(process.mtype==5)
+           {
+             receivingProcesses=0;
+             break;
+           }
+           else
+           {
+           struct PCB* pcb = (PCB*) malloc(sizeof(PCB));
+           *pcb=createPCB(process); 
            enqueue(readyQueue,pcb);
+           }
         }
-
-
+       
+        switch (type)
+        {
+        case 1:
+            RR_algo(readyQueue,currProcess,quantum);
+            break;
+        case 2:
+            HPF_algo(readyQueue,currProcess);
+            break;
+        case 3:
+            FCFS_algo(readyQueue,currProcess,N,M);
+            break;
+        default:
+            break;
+        }
+        
+        //handle context switch  -------not done yet---------
+        if(context_switch)
+            handle_context_switch();
+        //---------------not sure if it will be done in the schedule-------------------
+        //---------------it is already written in the process
         // if (currProcess != NULL) 
         //     currProcess->remaining_time--;
     }
