@@ -4,13 +4,17 @@
 #include <sys/types.h>  
 
 
-
-
-typedef struct PCB {
+typedef struct processData
+{
+    long mtype;
     int id;
-    int arrival_time;
+    int arrival;
     int runtime;
     int priority;
+} processData;
+
+typedef struct PCB {
+    processData p;
 
     int remaining_time;
     int waiting_time;
