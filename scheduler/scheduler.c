@@ -10,7 +10,7 @@ int quantum,N,M,current_time;
 int main(int argc, char * argv[])
 {
     key_t key_id;
-    int rec_val, msgq_id;
+    signal(SIGINT, cleanup); 
     key_id = ftok("../keyfile", 65);
     msgq_id = msgget(key_id, 0666 );
     if (msgq_id == -1)
@@ -35,24 +35,24 @@ int main(int argc, char * argv[])
     }
         
     initClk();
+    current_time = getClk();
     while(!isEmpty(readyQueue) || receivingProcesses || currProcess)
     {
-        current_time = getClk();
-        while (!isEmpty(readyQueue)&& peek(readyQueue)->p.arrival==getClk())
-        {  
-           process=receive(msgq_id);
-           if(process.mtype==5)
-           {
-             receivingProcesses=0;
-             break;
-           }
-           else
-           {
-           struct PCB* pcb = (PCB*) malloc(sizeof(PCB));
-           *pcb=createPCB(process); 
-           enqueue(readyQueue,pcb);
-           }
+        while (msgrcv(msgq_id, &process, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1) 
+        {
+            if(process.mtype == 5) 
+            {
+                receivingProcesses = 0;
+                break;
+            }
+            
+            // Create PCB and add to your Ready Queue
+            struct PCB* pcb = (struct PCB*) malloc(sizeof(struct PCB));
+            *pcb = createPCB(process); 
+            enqueue(readyQueue, pcb);
+            
         }
+        
        
         switch (type)
         {
@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
         default:
             break;
         }
-        
+
         //handle context switch  -------not done yet---------
         if(context_switch)
             handle_context_switch();
@@ -76,6 +76,9 @@ int main(int argc, char * argv[])
         //---------------it is already written in the process
         // if (currProcess != NULL) 
         //     currProcess->remaining_time--;
+
+        // handle the correct timing    -------not done yet---------
+        wait_one_sec();
     }
     
     //TODO implement the scheduler :)

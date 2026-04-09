@@ -28,3 +28,10 @@ struct  PCB createPCB(struct processData p)
     return pcb;
     
 }
+
+void cleanup(int signum) {
+    // Release all IPC resources 
+    msgctl(msgq_id, IPC_RMID, NULL);
+    destroyClk(true);
+    exit(0);
+}
