@@ -20,10 +20,15 @@ int main(int argc, char *argv[])
     }
     // TODO Initialization
     // 1. Read the input files.
-    FILE *inputFile = fopen("processes.txt", "r");
+    FILE *inputFile = fopen("input/processes.txt", "r");
     if (inputFile == NULL)
     {
-        printf("Error opening file\n");
+        // Support running from process_generator directory as well.
+        inputFile = fopen("../input/processes.txt", "r");
+    }
+    if (inputFile == NULL)
+    {
+        perror("Error opening input/processes.txt");
         return 1;
     }
 
@@ -66,33 +71,21 @@ int main(int argc, char *argv[])
     }
     // 3. Initiate and create the scheduler and clock processes.
 
-    if (system("gcc ../scheduler/scheduler.c ../scheduler/scheduler_functions.c -o scheduler.out") != 0)
-    {
-        perror("scheduler compilation failed");
-        return 1;
-    }
-
-    if (system("gcc ../clk.c -o clk.out") != 0)
-    {
-        perror("clk compilation failed");
-        return 1;
-    }
-
     pid_t pid = fork();
 
     if (pid == 0)
     {
         if (type == 1)
         {
-            execl("./scheduler.out", "scheduler.out", tStr, qStr, NULL);
+            execl("outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
         }
         else if (type == 2)
         {
-            execl("./scheduler.out", "scheduler.out", tStr, NULL);
+            execl("outFiles/scheduler.out", "scheduler.out", tStr, NULL);
         }
         else if (type == 3)
         {
-            execl("./scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
+            execl("outFiles/scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
         }
 
         perror("scheduler execl failed");
@@ -104,7 +97,7 @@ int main(int argc, char *argv[])
     if (pid == 0)
     {
 
-        execl("./clk.out", "clk.out", NULL);
+        execl("outFiles/clk.out", "clk.out", NULL);
         perror("clk execl failed");
         exit(1);
     }
