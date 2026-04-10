@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/msg.h>
+#include <signal.h>
 #include "scheduler.h"
 #include "../data_structures/PCB/Sch_PCB.h"
 
@@ -17,7 +18,7 @@ processData receive(int msgq_id)
     {
         perror("Error in receive");
         exit(1);
-    } 
+    }
     return p;
 }
 
@@ -34,72 +35,98 @@ struct PCB createPCB(processData p)
     pcb.remaining_time = p.runtime;
     pcb.waiting_time = 0;
     pcb.state = 'W';
+    pcb.pid = -1;
     pcb.next = NULL;
 
-    
     return pcb;
-    
 }
 
-void runProcess(struct PCB* pcb){
+void runProcess(struct PCB *pcb)
+{
     if (pcb->start_time == -1)
     {
         pcb->start_time = getClk();
         pcb->waiting_time = pcb->start_time - pcb->arrival;
     }
-
-    pid_t pid = fork();
-    if (pid == -1)
+    if (pcb->pid == -1)
     {
-        perror("fork failed");
-        exit(1);
-    }
+        pid_t pid = fork();
+        if (pid == -1)
+        {
+            perror("fork failed");
+            exit(1);
+        }
 
-    if (pid == 0)
+        if (pid == 0)
+        {
+            char runtime_str[16];
+            snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
+            execl("../outFiles/process.out", "process.out", runtime_str, (char *)NULL);
+            perror("execl failed");
+            _exit(1);
+        }
+
+        pcb->pid = pid;
+    }
+    else
     {
-        char runtime_str[16];
-        snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
-        execl("../outFiles/process.out", "process.out", runtime_str, (char *)NULL);
-        perror("execl failed");
-        _exit(1);
+        kill(pcb->pid, SIGCONT);
     }
-
-    pcb->pid = pid;
     pcb->state = 'R';
-    
-
+    printf("process %d runnig \n", pcb->pid);
 }
 
-void cleanup(int signum) {
+void cleanup(int signum)
+{
     (void)signum;
-    // Release all IPC resources 
+    // Release all IPC resources
     msgctl(msgq_id, IPC_RMID, NULL);
     destroyClk(1);
     exit(0);
 }
 
-void RR_algo(Queue* readyQueue, struct PCB* currProcess, int q)
+void RR_algo(Queue *readyQueue, struct PCB *currProcess, int q)
 {
     (void)readyQueue;
     (void)currProcess;
     (void)q;
 }
 
-void HPF_algo(Queue* readyQueue, struct PCB* currProcess)
+void HPF_algo(Queue *readyQueue, struct PCB **currProcess)
 {
-    (void)readyQueue;
-    (void)currProcess;
+    if (*currProcess != NULL && !isEmpty(readyQueue))
+    {
+        PCB *top = peek(readyQueue);
+
+        if (top->priority < (*currProcess)->priority)
+        {
+            kill((*currProcess)->pid, SIGSTOP);
+            (*currProcess)->state = 'W';
+            enqueue(readyQueue, (*currProcess));
+            printf("process %d stoped \n", (*currProcess)->pid);
+            // here supposed to call context switch ??
+
+            (*currProcess) = dequeue(readyQueue);
+            runProcess(*currProcess);
+        }
+    }
+
+    if ((*currProcess) == NULL && !isEmpty(readyQueue))
+    {
+        *currProcess = dequeue(readyQueue);
+        runProcess(*currProcess);
+    }
 }
 
-void FCFS_algo(Queue* readyQueue, struct PCB** currProcess, int N, int M)
+void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M)
 {
     (void)N;
     (void)M;
 
     if (*currProcess == NULL && !isEmpty(readyQueue))
     {
-         *currProcess = dequeue(readyQueue);
-         runProcess(*currProcess);
+        *currProcess = dequeue(readyQueue);
+        runProcess(*currProcess);
     }
 }
 
