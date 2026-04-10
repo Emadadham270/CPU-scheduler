@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CPU Scheduler Include Explorer</title>
+    <style>
+      :root {
+        --bg: #f6f4ef;
+        --panel: #fffdf8;
+        --ink: #1d2a33;
+        --muted: #5b6c79;
+        --line: #d8d2c5;
+        --accent: #0d6e8a;
+        --accent-soft: #e8f6fb;
+        --sys: #6c757d;
+        --user: #0b7285;
+        --warn: #9a3412;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(
+            1200px 500px at 120% -20%,
+            #dff3f7 0%,
+            transparent 55%
+          ),
+          radial-gradient(
+            900px 450px at -10% 120%,
+            #f8ead6 0%,
+            transparent 60%
+          ),
+          var(--bg);
+        min-height: 100vh;
+      }
+
+      .wrap {
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 0 14px 20px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #0d6e8a, #1f8ca7);
+        color: #f7fcff;
+        border-radius: 16px;
+        padding: 18px 20px;
+        box-shadow: 0 8px 24px rgba(17, 72, 91, 0.24);
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: 1.35rem;
+        letter-spacing: 0.2px;
+      }
+
+      .hero p {
+        margin: 8px 0 0;
+        color: #dff4fb;
+        font-size: 0.95rem;
+      }
+
+      .layout {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 14px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: 0 4px 14px rgba(31, 38, 44, 0.08);
+        overflow: hidden;
+      }
+
+      .card-head {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        background: #fff8ec;
+        font-weight: 700;
+        color: #21313c;
+      }
+
+      .files {
+        max-height: 76vh;
+        overflow: auto;
+        padding: 8px;
+      }
+
+      .tools {
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        background: #fffefb;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .search {
+        width: 100%;
+        border: 1px solid #d4dbe2;
+        border-radius: 10px;
+        padding: 9px 10px;
+        font-size: 0.9rem;
+        color: var(--ink);
+        background: #fff;
+      }
+
+      .search:focus {
+        outline: 2px solid #bde5f0;
+        border-color: #8bcad8;
+      }
+
+      .viewer-actions {
+        margin: 0 0 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        border: 1px solid #8bcad8;
+        background: #eaf9fd;
+        color: #0f4c5c;
+        padding: 7px 11px;
+        border-radius: 9px;
+        font-size: 0.86rem;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        background: #dff4fb;
+      }
+
+      .file-btn {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--ink);
+        padding: 8px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        margin-bottom: 4px;
+        font-size: 0.9rem;
+        line-height: 1.35;
+      }
+
+      .file-btn:hover {
+        background: #f1fbfd;
+        border-color: #caebf5;
+      }
+
+      .file-btn.active {
+        background: var(--accent-soft);
+        border-color: #9dd7e7;
+        color: #0f4c5c;
+        font-weight: 600;
+      }
+
+      .viewer {
+        padding: 14px;
+      }
+
+      .meta {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .block {
+        margin-bottom: 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .block h3 {
+        margin: 0;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        background: #faf5ea;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .block-body {
+        padding: 10px 12px;
+      }
+
+      ul.clean {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li {
+        margin: 3px 0;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+
+      .chip {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 1px 8px;
+        margin-right: 6px;
+        font-size: 0.75rem;
+        vertical-align: middle;
+        border: 1px solid transparent;
+      }
+
+      .chip.user {
+        color: var(--user);
+        border-color: #8bcad8;
+        background: #ecf9fc;
+      }
+
+      .chip.sys {
+        color: var(--sys);
+        border-color: #cfd3d7;
+        background: #f6f7f8;
+      }
+
+      .chip.note {
+        color: var(--warn);
+        border-color: #f2c9b6;
+        background: #fff4ef;
+      }
+
+      code {
+        background: #f6f8fa;
+        border: 1px solid #e4e8ec;
+        border-radius: 6px;
+        padding: 1px 5px;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.86rem;
+      }
+
+      .tree ul {
+        margin: 0;
+        padding-left: 18px;
+        border-left: 1px dashed #d9dee3;
+      }
+
+      .empty {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .files {
+          max-height: 38vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hero">
+        <h1>CPU Scheduler Include Explorer</h1>
+        <p>
+          Select any source/header file to inspect direct includes and the
+          recursive include chain.
+        </p>
+      </div>
+
+      <div class="layout">
+        <section class="card">
+          <div class="card-head">Project Files (.c / .h)</div>
+          <div class="tools">
+            <input
+              id="fileSearch"
+              class="search"
+              type="text"
+              placeholder="Search files..."
+            />
+          </div>
+          <div id="fileList" class="files"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">Include Details</div>
+          <div class="viewer" id="viewer"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const files = [
+        "clk.c",
+        "headers.h",
+        "data structs/structs.h",
+        "data_structures/PCB/Sch_PCB.c",
+        "data_structures/PCB/Sch_PCB.h",
+        "data_structures/PCB/pcb_test.c",
+        "process/process.c",
+        "process/process.h",
+        "process/process_functions.c",
+        "process_generator/process_generator.c",
+        "process_generator/process_generator.h",
+        "process_generator/process_generator_functions.c",
+        "process_generator/process_generator_queue_test.c",
+        "scheduler/scheduler.c",
+        "scheduler/scheduler.h",
+        "scheduler/scheduler_functions.c",
+        "test_generator/test_generator.c",
+        "test_generator/test_generator.h",
+        "test_generator/test_generator_functions.c",
+      ];
+
+      const includeMap = {
+        "clk.c": [{ raw: "headers.h", type: "user" }],
+        "headers.h": [
+          { raw: "stdio.h", type: "system" },
+          { raw: "sys/types.h", type: "system" },
+          { raw: "sys/stat.h", type: "system" },
+          { raw: "sys/file.h", type: "system" },
+          { raw: "sys/ipc.h", type: "system" },
+          { raw: "sys/shm.h", type: "system" },
+          { raw: "sys/sem.h", type: "system" },
+          { raw: "sys/msg.h", type: "system" },
+          { raw: "sys/wait.h", type: "system" },
+          { raw: "stdlib.h", type: "system" },
+          { raw: "unistd.h", type: "system" },
+          { raw: "signal.h", type: "system" },
+          { raw: "errno.h", type: "system" },
+          { raw: "limits.h", type: "system" },
+          { raw: "./data structs/structs.h", type: "user" },
+        ],
+        "data structs/structs.h": [{ raw: "sys/types.h", type: "system" }],
+        "data_structures/PCB/Sch_PCB.c": [
+          { raw: "stdio.h", type: "system" },
+          { raw: "stdlib.h", type: "system" },
+          { raw: "Sch_PCB.h", type: "user" },
+        ],
+        "data_structures/PCB/Sch_PCB.h": [
+          { raw: "../../data structs/structs.h", type: "user" },
+        ],
+        "data_structures/PCB/pcb_test.c": [
+          { raw: "stdio.h", type: "system" },
+          { raw: "stdlib.h", type: "system" },
+          { raw: "Sch_PCB.h", type: "user" },
+        ],
+        "process/process.c": [
+          { raw: "../headers.h", type: "user" },
+          { raw: "process.h", type: "user" },
+        ],
+        "process/process.h": [],
+        "process/process_functions.c": [],
+        "process_generator/process_generator.c": [
+          { raw: "../headers.h", type: "user" },
+          { raw: "process_generator.h", type: "user" },
+        ],
+        "process_generator/process_generator.h": [
+          { raw: "../data structs/structs.h", type: "user" },
+        ],
+        "process_generator/process_generator_functions.c": [
+          { raw: "stdio.h", type: "system" },
+          { raw: "stdlib.h", type: "system" },
+          { raw: "process_generator.h", type: "user" },
+        ],
+        "process_generator/process_generator_queue_test.c": [
+          { raw: "stdio.h", type: "system" },
+          { raw: "stdlib.h", type: "system" },
+          { raw: "process_generator.h", type: "user" },
+        ],
+        "scheduler/scheduler.c": [
+          { raw: "../headers.h", type: "user" },
+          { raw: "scheduler.h", type: "user" },
+        ],
+        "scheduler/scheduler.h": [
+          { raw: "sys/types.h", type: "system" },
+          { raw: "../data structs/structs.h", type: "user" },
+          { raw: "../data_structures/PCB/Sch_PCB.h", type: "user" },
+        ],
+        "scheduler/scheduler_functions.c": [
+          { raw: "stdio.h", type: "system" },
+          { raw: "stdlib.h", type: "system" },
+          { raw: "unistd.h", type: "system" },
+          { raw: "sys/msg.h", type: "system" },
+          { raw: "scheduler.h", type: "user" },
+          { raw: "../data_structures/PCB/Sch_PCB.h", type: "user" },
+        ],
+        "test_generator/test_generator.c": [
+          { raw: "stdio.h", type: "system" },
+          { raw: "stdlib.h", type: "system" },
+          { raw: "time.h", type: "system" },
+        ],
+        "test_generator/test_generator.h": [],
+        "test_generator/test_generator_functions.c": [],
+      };
+
+      const fileSet = new Set(files);
+      let selectedFile = "";
+
+      function normalizePath(input) {
+        const parts = input.split("/");
+        const out = [];
+        for (const part of parts) {
+          if (!part || part === ".") continue;
+          if (part === "..") out.pop();
+          else out.push(part);
+        }
+        return out.join("/");
+      }
+
+      function dirOf(path) {
+        const idx = path.lastIndexOf("/");
+        return idx === -1 ? "" : path.slice(0, idx);
+      }
+
+      function resolveUserInclude(fromFile, includeRaw) {
+        const base = dirOf(fromFile);
+        const merged = base ? base + "/" + includeRaw : includeRaw;
+        const normalized = normalizePath(merged);
+        return fileSet.has(normalized) ? normalized : null;
+      }
+
+      function directIncludes(file) {
+        return includeMap[file] || [];
+      }
+
+      function makeTreeNode(file, stack = new Set()) {
+        const node = {
+          label: file,
+          kind: "file",
+          children: [],
+        };
+
+        if (stack.has(file)) {
+          node.children.push({
+            label: "cycle detected",
+            kind: "note",
+            children: [],
+          });
+          return node;
+        }
+
+        stack.add(file);
+
+        for (const inc of directIncludes(file)) {
+          if (inc.type === "system") {
+            node.children.push({
+              label: inc.raw,
+              kind: "system",
+              children: [],
+            });
+            continue;
+          }
+
+          const resolved = resolveUserInclude(file, inc.raw);
+          if (!resolved) {
+            node.children.push({
+              label: `\"${inc.raw}\" (not found in project list)`,
+              kind: "note",
+              children: [],
+            });
+            continue;
+          }
+
+          node.children.push(makeTreeNode(resolved, new Set(stack)));
+        }
+
+        return node;
+      }
+
+      function renderTree(node) {
+        const li = document.createElement("li");
+        if (node.kind === "system") {
+          li.innerHTML = `<span class="chip sys">system</span><code>&lt;${escapeHtml(node.label)}&gt;</code>`;
+        } else if (node.kind === "note") {
+          li.innerHTML = `<span class="chip note">note</span>${escapeHtml(node.label)}`;
+        } else {
+          li.innerHTML = `<span class="chip user">file</span><code>${escapeHtml(node.label)}</code>`;
+        }
+
+        if (node.children && node.children.length > 0) {
+          const ul = document.createElement("ul");
+          for (const child of node.children) {
+            ul.appendChild(renderTree(child));
+          }
+          li.appendChild(ul);
+        }
+
+        return li;
+      }
+
+      function escapeHtml(text) {
+        return text
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function renderViewer(file) {
+        selectedFile = file;
+        const viewer = document.getElementById("viewer");
+        const includes = directIncludes(file);
+
+        const directList = includes.length
+          ? `<ul class="clean">${includes
+              .map((inc) => {
+                if (inc.type === "system") {
+                  return `<li><span class="chip sys">system</span><code>&lt;${escapeHtml(inc.raw)}&gt;</code></li>`;
+                }
+                const resolved = resolveUserInclude(file, inc.raw);
+                const suffix = resolved
+                  ? ` -> <code>${escapeHtml(resolved)}</code>`
+                  : " -> not found in project list";
+                return `<li><span class="chip user">user</span><code>\"${escapeHtml(inc.raw)}\"</code>${suffix}</li>`;
+              })
+              .join("")}</ul>`
+          : `<div class="empty">No include directives in this file.</div>`;
+
+        const tree = makeTreeNode(file);
+        const treeHtml = `<ul class="clean tree">${renderTree(tree).outerHTML}</ul>`;
+
+        viewer.innerHTML = `
+        <div class="viewer-actions">
+          <button id="exportJson" class="btn" type="button">Export Include Tree JSON</button>
+        </div>
+        <p class="meta"><strong>Selected file:</strong> <code>${escapeHtml(file)}</code></p>
+
+        <section class="block">
+          <h3>Direct Includes</h3>
+          <div class="block-body">${directList}</div>
+        </section>
+
+        <section class="block">
+          <h3>Recursive Include Chain</h3>
+          <div class="block-body">${treeHtml}</div>
+        </section>
+      `;
+
+        const exportBtn = document.getElementById("exportJson");
+        if (exportBtn) {
+          exportBtn.addEventListener("click", exportCurrentJson);
+        }
+      }
+
+      function treeToPlain(node) {
+        return {
+          kind: node.kind,
+          label: node.label,
+          children: (node.children || []).map(treeToPlain),
+        };
+      }
+
+      function exportCurrentJson() {
+        if (!selectedFile) return;
+
+        const payload = {
+          selectedFile,
+          directIncludes: directIncludes(selectedFile).map((inc) => ({
+            include: inc.raw,
+            includeType: inc.type,
+            resolvedPath:
+              inc.type === "user"
+                ? resolveUserInclude(selectedFile, inc.raw)
+                : null,
+          })),
+          recursiveTree: treeToPlain(makeTreeNode(selectedFile)),
+        };
+
+        const json = JSON.stringify(payload, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const safeName = selectedFile
+          .replace(/[\\/]/g, "_")
+          .replace(/\./g, "_");
+        a.href = url;
+        a.download = `${safeName}_include_tree.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function buildFileList(filterText = "") {
+        const holder = document.getElementById("fileList");
+        holder.innerHTML = "";
+
+        const query = filterText.trim().toLowerCase();
+        const filtered = files.filter((file) =>
+          file.toLowerCase().includes(query),
+        );
+
+        for (const file of filtered) {
+          const btn = document.createElement("button");
+          btn.className = "file-btn";
+          btn.textContent = file;
+          btn.addEventListener("click", () => {
+            document
+              .querySelectorAll(".file-btn")
+              .forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+            renderViewer(file);
+          });
+          holder.appendChild(btn);
+        }
+
+        if (filtered.length === 0) {
+          const noResult = document.createElement("div");
+          noResult.className = "empty";
+          noResult.style.padding = "8px 10px";
+          noResult.textContent = "No files match your search.";
+          holder.appendChild(noResult);
+        }
+
+        if (selectedFile && filtered.includes(selectedFile)) {
+          const current = Array.from(holder.querySelectorAll(".file-btn")).find(
+            (b) => b.textContent === selectedFile,
+          );
+          if (current) {
+            current.classList.add("active");
+            return;
+          }
+        }
+
+        const first = holder.querySelector(".file-btn");
+        if (first && !selectedFile) {
+          first.classList.add("active");
+          renderViewer(first.textContent);
+        } else if (!first && !selectedFile) {
+          document.getElementById("viewer").innerHTML =
+            `<div class="empty">No files available.</div>`;
+        }
+      }
+
+      buildFileList();
+
+      const searchInput = document.getElementById("fileSearch");
+      if (searchInput) {
+        searchInput.addEventListener("input", () => {
+          buildFileList(searchInput.value);
+        });
+      }
+
+      if (!selectedFile && files.length > 0) {
+        selectedFile = files[0];
+        renderViewer(selectedFile);
+        buildFileList(searchInput ? searchInput.value : "");
+      }
+    </script>
+  </body>
+</html>
