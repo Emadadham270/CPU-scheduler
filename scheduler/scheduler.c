@@ -7,12 +7,20 @@ int context_switch=0;
 Queue* readyQueue;
 struct PCB* currProcess=NULL; 
 int quantum,N,M,current_time;
+int processFinishedSignal = 0;
+
+void onProcessFinished(int signum)
+{
+    (void)signum;
+    processFinishedSignal = 1;
+}
 
 int main(int argc, char * argv[])
 {
     (void)argc;
     key_t key_id;
     signal(SIGINT, cleanup); 
+    signal(SIGUSR1, onProcessFinished);
     key_id = ftok("../keyfile", 65);
     msgq_id = msgget(key_id, 0666 );
     if (msgq_id == -1)
@@ -32,6 +40,7 @@ int main(int argc, char * argv[])
     else if (type == 3)
     {
         char *e1,*e2;
+        // review this 
         N = strtol(argv[1], &e1, 10);
         M = strtol(argv[2], &e2, 10);
     }
@@ -54,6 +63,29 @@ int main(int argc, char * argv[])
             enqueue(readyQueue, pcb);
             
         }
+
+        if (currProcess != NULL && processFinishedSignal)
+        {
+            int status;
+            processFinishedSignal = 0;
+
+            kill(currProcess->pid, SIGTERM);
+
+            while (waitpid(currProcess->pid, &status, 0) == -1)
+            {
+                if (errno != EINTR)
+                {
+                    perror("waitpid failed");
+                    break;
+                }
+            }
+
+            currProcess->finish_time = getClk();
+            currProcess->remaining_time = 0;
+            currProcess->state = 'F';
+            free(currProcess);
+            currProcess = NULL;
+        }
         
        
         switch (type)
@@ -65,7 +97,7 @@ int main(int argc, char * argv[])
             HPF_algo(readyQueue,currProcess);
             break;
         case 3:
-            FCFS_algo(readyQueue,currProcess,N,M);
+            FCFS_algo(readyQueue,&currProcess,N,M);
             break;
         default:
             break;

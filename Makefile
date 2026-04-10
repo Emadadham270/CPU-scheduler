@@ -16,7 +16,7 @@ TEST_GEN_BIN := $(OUT_DIR)/test_generator.out
 CLK_BIN := $(OUT_DIR)/clk.out
 PCB_OBJ := $(OBJ_DIR)/data_structures/PCB/Sch_PCB.o
 
-.PHONY: all build clean run dirs process_generator scheduler process test_generator clk pcb folders
+.PHONY: all build clean run run-all run-all-auto dirs process_generator scheduler process test_generator clk pcb folders
 
 all: build
 
@@ -64,3 +64,9 @@ clean:
 
 run: process_generator
 	./$(PROCESS_GEN_BIN)
+
+run-all: process_generator scheduler process clk
+	cd process_generator; ../$(PROCESS_GEN_BIN)
+
+run-all-auto: process_generator scheduler process clk
+	setsid sh -c 'cd process_generator; printf "3\n3\n3\n" | ../$(PROCESS_GEN_BIN)' || true
