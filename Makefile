@@ -4,7 +4,7 @@ OUT_DIR := outFiles
 OBJ_DIR := output
 
 PROCESS_GEN_SRCS := process_generator/process_generator.c process_generator/process_generator_functions.c
-SCHEDULER_SRCS := scheduler/scheduler.c scheduler/scheduler_functions.c
+SCHEDULER_SRCS := scheduler/scheduler.c scheduler/scheduler_functions.c data_structures/PCB/Sch_PCB.c
 PROCESS_SRCS := process/process.c process/process_functions.c
 TEST_GEN_SRCS := test_generator/test_generator.c test_generator/test_generator_functions.c
 PCB_SRCS := data_structures/PCB/Sch_PCB.c

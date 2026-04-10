@@ -2,22 +2,32 @@
 #include <stdlib.h>
 #include "process_generator.h"
 
-Queue *createQueue()
+PGQueue *pg_createQueue()
 {
-    Queue *q = (Queue *)malloc(sizeof(Queue));
+    PGQueue *q = (PGQueue *)malloc(sizeof(PGQueue));
+    if (q == NULL)
+    {
+        perror("malloc failed");
+        exit(1);
+    }
     q->front = q->rear = NULL;
     q->size = 0;
     return q;
 }
 
-int isEmpty(Queue *q)
+int pg_isEmpty(PGQueue *q)
 {
     return q->front == NULL;
 }
 
-void enqueue(Queue *q, processData p)
+void pg_enqueue(PGQueue *q, processData p)
 {
-    Node *newNode = (Node *)malloc(sizeof(Node));
+    PGNode *newNode = (PGNode *)malloc(sizeof(PGNode));
+    if (newNode == NULL)
+    {
+        perror("malloc failed");
+        exit(1);
+    }
     newNode->data = p;
     newNode->next = NULL;
 
@@ -33,14 +43,14 @@ void enqueue(Queue *q, processData p)
     q->size++;
 }
 
-processData dequeue(Queue *q)
+processData pg_dequeue(PGQueue *q)
 {
-    if (isEmpty(q))
+    if (pg_isEmpty(q))
     {
         fprintf(stderr, "Queue underflow!\n");
         exit(1);
     }
-    Node *temp = q->front;
+    PGNode *temp = q->front;
     processData p = temp->data;
     q->front = q->front->next;
     if (q->front == NULL)
@@ -50,9 +60,9 @@ processData dequeue(Queue *q)
     return p;
 }
 
-processData peek(Queue *q)
+processData pg_peek(PGQueue *q)
 {
-    if (isEmpty(q))
+    if (pg_isEmpty(q))
     {
         fprintf(stderr, "Queue is empty!\n");
         exit(1);
@@ -60,10 +70,10 @@ processData peek(Queue *q)
     return q->front->data;
 }
 
-void freeQueue(Queue *q)
+void pg_freeQueue(PGQueue *q)
 {
-    while (!isEmpty(q))
-        dequeue(q);
+    while (!pg_isEmpty(q))
+        pg_dequeue(q);
     free(q);
     //
 }

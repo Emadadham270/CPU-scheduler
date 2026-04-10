@@ -1,13 +1,18 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
+
 #include <sys/types.h>  
-int msgq_id;
-struct processData receive(int msgq_id);
-struct  PCB  createPCB(struct processData p);
-void RR_algo(Queue* readyQueue,struct PBC* currProcess,int q);
-void HPF_algo(Queue* readyQueue,struct PBC* currProcess);
-void FCFS_algo(Queue* readyQueue,struct PBC* currProcess,int N,int M);
+
+#include "../data structs/structs.h"
+#include "../data_structures/PCB/Sch_PCB.h"
+
+extern int msgq_id;
+processData receive(int msgq_id);
+struct PCB createPCB(processData p);
+void RR_algo(Queue* readyQueue, struct PCB* currProcess, int q);
+void HPF_algo(Queue* readyQueue, struct PCB* currProcess);
+void FCFS_algo(Queue* readyQueue, struct PCB* currProcess, int N, int M);
 void handle_context_switch();
 void wait_one_sec();
 void cleanup(int signum);

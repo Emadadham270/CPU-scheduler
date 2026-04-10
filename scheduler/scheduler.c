@@ -1,14 +1,16 @@
 #include "../headers.h"
 #include "scheduler.h"
-#include "../data_structures/PCB/Sch_PCB.h"
+
+int msgq_id;
 int receivingProcesses=1;
 int context_switch=0;
 Queue* readyQueue;
-struct PBC* currProcess=NULL; 
+struct PCB* currProcess=NULL; 
 int quantum,N,M,current_time;
 
 int main(int argc, char * argv[])
 {
+    (void)argc;
     key_t key_id;
     signal(SIGINT, cleanup); 
     key_id = ftok("../keyfile", 65);
@@ -18,7 +20,7 @@ int main(int argc, char * argv[])
         perror("Error in receive message queue");
         exit(1);
     }
-    struct processData process;
+    processData process;
     readyQueue=createQueue();
     char *end;
     int type = strtol(argv[1], &end, 10);
@@ -81,7 +83,7 @@ int main(int argc, char * argv[])
         wait_one_sec();
     }
     
-    //TODO implement the scheduler :)
+    //TODO implement the scheduler 
     //upon termination release the clock resources.
     
     destroyClk(true);
