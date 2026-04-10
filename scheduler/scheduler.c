@@ -41,8 +41,8 @@ int main(int argc, char * argv[])
     {
         char *e1,*e2;
         // review this 
-        N = strtol(argv[1], &e1, 10);
-        M = strtol(argv[2], &e2, 10);
+        N = strtol(argv[2], &e1, 10);
+        M = strtol(argv[3], &e2, 10);
     }
         
     initClk();
@@ -103,7 +103,7 @@ int main(int argc, char * argv[])
             break;
         }
 
-        //handle context switch  -------not done yet---------
+        //handle context switch 
         if(context_switch)
             handle_context_switch();
         //---------------not sure if it will be done in the schedule-------------------
@@ -111,12 +111,13 @@ int main(int argc, char * argv[])
         // if (currProcess != NULL) 
         //     currProcess->remaining_time--;
 
-        // handle the correct timing    -------not done yet---------
-        wait_one_sec();
+        // handle the correct timing   
+        while ( current_time == getClk() );
+        
     }
     
     //TODO implement the scheduler 
     //upon termination release the clock resources.
-    
-    destroyClk(true);
+    msgctl(msgq_id, IPC_RMID, NULL);
+   // destroyClk(true);
 }

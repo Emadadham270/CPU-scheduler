@@ -4,6 +4,7 @@
 #include <sys/msg.h>
 #include "scheduler.h"
 #include "../data_structures/PCB/Sch_PCB.h"
+#include <signal.h>
 
 typedef short bool;
 void destroyClk(bool terminateAll);
@@ -74,7 +75,7 @@ void cleanup(int signum) {
     (void)signum;
     // Release all IPC resources 
     msgctl(msgq_id, IPC_RMID, NULL);
-    destroyClk(1);
+    //destroyClk(1);
     exit(0);
 }
 
@@ -102,12 +103,19 @@ void FCFS_algo(Queue* readyQueue, struct PCB** currProcess, int N, int M)
          runProcess(*currProcess);
     }
 }
-
-void handle_context_switch(void)
+void handle_context_switch(struct PCB* oldProcess, struct PCB* newProcess) 
 {
+    if (oldProcess != NULL && oldProcess->state == 'R') {
+        kill(oldProcess->pid, SIGSTOP);
+        oldProcess->state = 'W';
+        // Log "stopped" 
+    }
+    wait_N_secs(1);
+    runProcess(newProcess);
 }
 
-void wait_one_sec(void)
+void wait_N_secs(int N)
 {
-    sleep(1);
+    int curr=getClk()+N;
+    while ( curr >= getClk());
 }

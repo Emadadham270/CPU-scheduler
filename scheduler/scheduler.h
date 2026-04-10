@@ -16,7 +16,7 @@ void RR_algo(Queue* readyQueue, struct PCB* currProcess, int q);
 void HPF_algo(Queue* readyQueue, struct PCB* currProcess);
 void FCFS_algo(Queue* readyQueue, struct PCB** currProcess, int N, int M);
 void handle_context_switch();
-void wait_one_sec();
+void wait_N_secs(int N);
 void cleanup(int signum);
 
 #endif // SCHEDULER_H
