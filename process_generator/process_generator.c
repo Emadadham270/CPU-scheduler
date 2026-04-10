@@ -73,9 +73,9 @@ int main(int argc, char *argv[])
     }
     // 3. Initiate and create the scheduler and clock processes.
 
-    pid_t pid = fork();
+    pid_t scheduler_pid = fork();
 
-    if (pid == 0)
+    if (scheduler_pid == 0)
     {
         if (type == 1)
         {
@@ -93,14 +93,24 @@ int main(int argc, char *argv[])
         perror("scheduler execl failed");
         exit(1);
     }
+    else if (scheduler_pid < 0)
+    {
+        perror("fork scheduler failed");
+        exit(1);
+    }
 
-    pid = fork();
+    pid_t clk_pid = fork();
 
-    if (pid == 0)
+    if (clk_pid == 0)
     {
 
         execl("../outFiles/clk.out", "clk.out", NULL);
         perror("clk execl failed");
+        exit(1);
+    }
+    else if (clk_pid < 0)
+    {
+        perror("fork clk failed");
         exit(1);
     }
 
@@ -141,11 +151,16 @@ int main(int argc, char *argv[])
         perror("Error in msgsnd");
     }
     pg_freeQueue(q);
-    // wait(NULL);
-    // wait(NULL);
 
-    // 7. Clear clock resources
-    destroyClk(true);
+    // Wait for scheduler to finish all processes, then stop clock.
+    waitpid(scheduler_pid, NULL, 0);
+    kill(clk_pid, SIGINT);
+    waitpid(clk_pid, NULL, 0);
+
+    // 7. Clear clock communication resources in generator only.
+    destroyClk(false);
+    msgctl(msgq_id, IPC_RMID, (struct msqid_ds *)0);
+    return 0;
 }
 
 void clearResources(int signum)

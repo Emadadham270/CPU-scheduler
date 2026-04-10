@@ -7,6 +7,7 @@
 
 typedef short bool;
 void destroyClk(bool terminateAll);
+int getClk(void);
 
 processData receive(int msgq_id)
 {
@@ -35,6 +36,18 @@ struct PCB createPCB(processData p)
     pcb.state = 'W';
     pcb.next = NULL;
 
+    
+    return pcb;
+    
+}
+
+void runProcess(struct PCB* pcb){
+    if (pcb->start_time == -1)
+    {
+        pcb->start_time = getClk();
+        pcb->waiting_time = pcb->start_time - pcb->arrival;
+    }
+
     pid_t pid = fork();
     if (pid == -1)
     {
@@ -45,15 +58,16 @@ struct PCB createPCB(processData p)
     if (pid == 0)
     {
         char runtime_str[16];
-        snprintf(runtime_str, sizeof(runtime_str), "%d", p.runtime);
+        snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
         execl("../outFiles/process.out", "process.out", runtime_str, (char *)NULL);
         perror("execl failed");
         _exit(1);
     }
 
-    pcb.pid = pid;
-    return pcb;
+    pcb->pid = pid;
+    pcb->state = 'R';
     
+
 }
 
 void cleanup(int signum) {
@@ -77,12 +91,16 @@ void HPF_algo(Queue* readyQueue, struct PCB* currProcess)
     (void)currProcess;
 }
 
-void FCFS_algo(Queue* readyQueue, struct PCB* currProcess, int N, int M)
+void FCFS_algo(Queue* readyQueue, struct PCB** currProcess, int N, int M)
 {
-    (void)readyQueue;
-    (void)currProcess;
     (void)N;
     (void)M;
+
+    if (*currProcess == NULL && !isEmpty(readyQueue))
+    {
+         *currProcess = dequeue(readyQueue);
+         runProcess(*currProcess);
+    }
 }
 
 void handle_context_switch(void)

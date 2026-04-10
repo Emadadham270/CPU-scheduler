@@ -31,12 +31,20 @@ int main(int argc, char *argv[])
         if (prev != curr)
         {
             prev = curr;
-            remainingtime--;
             printf("remaining time: %d\n", remainingtime);
+            remainingtime--;
         }
     }
+    printf("remaining time: %d\n", remainingtime);
+    printf("Process finished at time %d\n", getClk());
+
+
 
     destroyClk(false);
     kill(getppid(), SIGUSR1);
-    return 0;
+
+    while (1)
+    {
+        pause();
+    }
 }
