@@ -7,6 +7,8 @@ int msgq_id;
 
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
     signal(SIGINT, clearResources);
     key_t key_id;
 
@@ -33,7 +35,7 @@ int main(int argc, char *argv[])
     }
 
     char line[MAX_N];
-    Queue *q = createQueue();
+    PGQueue *q = pg_createQueue();
 
     while (fgets(line, MAX_N, inputFile))
     {
@@ -42,7 +44,7 @@ int main(int argc, char *argv[])
         processData p;
         p.mtype = 1;
         sscanf(line, "%d %d %d %d", &p.id, &p.arrival, &p.runtime, &p.priority);
-        enqueue(q, p);
+        pg_enqueue(q, p);
     }
     fclose(inputFile);
     // 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
@@ -112,16 +114,16 @@ int main(int argc, char *argv[])
     // 6. Send the information to the scheduler at the appropriate time.
 
     int lastTime = -1;
-    while (!isEmpty(q))
+    while (!pg_isEmpty(q))
     {
         int currentTime = getClk();
 
         if (currentTime != lastTime)
         {
             // printf("Current time: %d\n", currentTime);
-            while (!isEmpty(q) && peek(q).arrival <= currentTime)
+            while (!pg_isEmpty(q) && pg_peek(q).arrival <= currentTime)
             {
-                processData p = dequeue(q);
+                processData p = pg_dequeue(q);
                 if (msgsnd(msgq_id, &p, sizeof(processData) - sizeof(long), 0) == -1)
                 {
                     perror("Error in msgsnd");
@@ -138,7 +140,7 @@ int main(int argc, char *argv[])
     {
         perror("Error in msgsnd");
     }
-    freeQueue(q);
+    pg_freeQueue(q);
     // wait(NULL);
     // wait(NULL);
 
@@ -148,6 +150,7 @@ int main(int argc, char *argv[])
 
 void clearResources(int signum)
 {
+    (void)signum;
     // TODO Clears all resources in case of interruption
     msgctl(msgq_id, IPC_RMID, (struct msqid_ds *)0);
     exit(0);

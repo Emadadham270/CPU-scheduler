@@ -5,6 +5,11 @@
 Queue *createQueue()
 {
     Queue *q = (Queue *)malloc(sizeof(Queue));
+    if (q == NULL)
+    {
+        perror("malloc failed");
+        exit(1);
+    }
     q->front = q->rear = NULL;
     q->size = 0;
     return q;
@@ -18,6 +23,11 @@ int isEmpty(Queue *q)
 void enqueue(Queue *q, PCB *pcb)
 {
     Node *newNode = (Node *)malloc(sizeof(Node));
+    if (newNode == NULL)
+    {
+        perror("malloc failed");
+        exit(1);
+    }
     newNode->pcb = pcb;
     newNode->next = NULL;
 
@@ -71,11 +81,15 @@ void freeQueue(Queue *q)
 
 void enqueue_priority(Queue *q, PCB *pcb) {
     Node *node = malloc(sizeof(Node));
+    if (node == NULL) {
+        perror("malloc failed");
+        exit(1);
+    }
     node->pcb  = pcb;
     node->next = NULL;
 
    
-    if (q->front == NULL || pcb->p.priority < q->front->pcb->p.priority) {
+    if (q->front == NULL || pcb->priority < q->front->pcb->priority) {
         node->next = q->front;
         q->front   = node;
         if (q->rear == NULL)
@@ -87,7 +101,7 @@ void enqueue_priority(Queue *q, PCB *pcb) {
 
     Node *curr = q->front;
     while (curr->next != NULL &&
-           curr->next->pcb->p.priority <= pcb->p.priority) {
+            curr->next->pcb->priority <= pcb->priority) {
         curr = curr->next;
     }
 
