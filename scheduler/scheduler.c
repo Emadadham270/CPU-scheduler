@@ -39,10 +39,10 @@ int main(int argc, char *argv[])
     }
     else if (type == 3)
     {
-        char *e1, *e2;
-        // review this
-        N = strtol(argv[1], &e1, 10);
-        M = strtol(argv[2], &e2, 10);
+        char *e1,*e2;
+        // review this 
+        N = strtol(argv[2], &e1, 10);
+        M = strtol(argv[3], &e2, 10);
     }
 
     initClk();
@@ -102,20 +102,21 @@ int main(int argc, char *argv[])
         }
         printf("%d\n", getClk());
 
-        // handle context switch  -------not done yet---------
-        if (context_switch)
+        //handle context switch 
+        if(context_switch)
             handle_context_switch();
         //---------------not sure if it will be done in the schedule-------------------
         //---------------it is already written in the process
         // if (currProcess != NULL)
         //     currProcess->remaining_time--;
 
-        // handle the correct timing    -------not done yet---------
-        wait_one_sec();
+        // handle the correct timing   
+        while ( current_time == getClk() );
+        
     }
-
-    // TODO implement the scheduler
-    // upon termination release the clock resources.
-
-    destroyClk(true);
+    
+    //TODO implement the scheduler 
+    //upon termination release the clock resources.
+    msgctl(msgq_id, IPC_RMID, NULL);
+   // destroyClk(true);
 }
