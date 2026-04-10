@@ -7,7 +7,7 @@
 #include "../data structs/structs.h"
 #include "../data_structures/PCB/Sch_PCB.h"
 
-extern int msgq_id;
+
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
 void RR_algo(Queue* readyQueue, struct PCB* currProcess, int q);
