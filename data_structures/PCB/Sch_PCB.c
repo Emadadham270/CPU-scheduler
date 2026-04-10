@@ -75,7 +75,7 @@ void enqueue_priority(Queue *q, PCB *pcb) {
     node->next = NULL;
 
    
-    if (q->front == NULL || pcb->priority < q->front->pcb->priority) {
+    if (q->front == NULL || pcb->p.priority < q->front->pcb->p.priority) {
         node->next = q->front;
         q->front   = node;
         if (q->rear == NULL)
@@ -87,7 +87,7 @@ void enqueue_priority(Queue *q, PCB *pcb) {
 
     Node *curr = q->front;
     while (curr->next != NULL &&
-           curr->next->pcb->priority <= pcb->priority) {
+           curr->next->pcb->p.priority <= pcb->p.priority) {
         curr = curr->next;
     }
 
