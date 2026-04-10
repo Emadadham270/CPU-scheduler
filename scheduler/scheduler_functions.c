@@ -86,7 +86,7 @@ void cleanup(int signum)
     exit(0);
 }
 
-void RR_algo(Queue *readyQueue, struct PCB *currProcess, int q)
+void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q)
 {
     (void)readyQueue;
     (void)currProcess;

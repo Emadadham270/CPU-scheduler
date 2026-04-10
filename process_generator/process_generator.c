@@ -113,9 +113,10 @@ int main(int argc, char *argv[])
         perror("fork clk failed");
         exit(1);
     }
-
+    
     // 4. Use this function after creating the clock process to initialize clock
     initClk();
+    //printf("%d",getClk());
     // To get time use this
     // int x = getClk();
     // printf("current time is %d\n", x);
