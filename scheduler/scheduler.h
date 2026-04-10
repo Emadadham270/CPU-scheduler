@@ -11,7 +11,7 @@ extern int msgq_id;
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
 void runProcess(struct PCB *pcb);
-void RR_algo(Queue *readyQueue, struct PCB *currProcess, int q);
+void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q);
 void HPF_algo(Queue *readyQueue, struct PCB **currProcess);
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M);
 void handle_context_switch();

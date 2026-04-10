@@ -6,7 +6,8 @@ int receivingProcesses = 1;
 int context_switch = 0;
 Queue *readyQueue;
 struct PCB *currProcess = NULL;
-int quantum, N, M, current_time;
+int quantum, N, M;
+//int current_time;
 int processFinishedSignal = 0;
 
 void onProcessFinished(int signum)
@@ -46,7 +47,7 @@ int main(int argc, char *argv[])
     }
 
     initClk();
-    current_time = getClk();
+    //current_time = getClk();
     while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
     {
         while (msgrcv(msgq_id, &process, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
@@ -89,7 +90,7 @@ int main(int argc, char *argv[])
         switch (type)
         {
         case 1:
-            RR_algo(readyQueue, currProcess, quantum);
+            RR_algo(readyQueue, &currProcess, quantum);
             break;
         case 2:
             HPF_algo(readyQueue, &currProcess);
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
         default:
             break;
         }
-        printf("%d\n", getClk());
+       // printf("%d\n", getClk());
 
         //handle context switch 
         if(context_switch)
@@ -111,8 +112,7 @@ int main(int argc, char *argv[])
         //     currProcess->remaining_time--;
 
         // handle the correct timing   
-        while ( current_time == getClk() );
-        
+        wait_N_secs(1);
     }
     
     //TODO implement the scheduler 
