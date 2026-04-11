@@ -40,6 +40,10 @@ int main(int argc, char *argv[]) {
     M = strtol(argv[3], &e2, 10);
   }
 
+  FILE* log_file, *perf_file;
+  create_log_files(&log_file, &perf_file);
+  write_comment_line(log_file);
+
   initClk();
   int last_tick = -1;
   while (!isEmpty(readyQueue) || receivingProcesses || currProcess) {
@@ -68,6 +72,8 @@ int main(int argc, char *argv[]) {
       currProcess->finish_time = getClk();
       currProcess->remaining_time = 0;
       currProcess->state = 'F';
+      currProcess->lState = FINISH;
+      log_data(log_file, currProcess);
       free(currProcess);
       currProcess = NULL;
       next_preemtion_time = -1;
@@ -92,13 +98,13 @@ int main(int argc, char *argv[]) {
     // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
     switch (type) {
     case 1:
-      RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time);
+      RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
       break;
     case 2:
-      HPF_algo(readyQueue, &currProcess);
+      HPF_algo(readyQueue, &currProcess, log_file);
       break;
     case 3:
-      FCFS_algo(readyQueue, &currProcess, N, M);
+      FCFS_algo(readyQueue, &currProcess, N, M, log_file);
       break;
     default:
       break;
