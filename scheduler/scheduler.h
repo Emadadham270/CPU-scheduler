@@ -15,7 +15,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
              int *next_preemtion_time);
 void HPF_algo(Queue *readyQueue, struct PCB **currProcess);
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M);
-void handle_context_switch();
+void handle_context_switch(struct PCB** oldProcess, struct PCB** newProcess);
 void wait_N_secs(int N);
 void cleanup(int signum);
 

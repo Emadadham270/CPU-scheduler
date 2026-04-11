@@ -99,7 +99,8 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
       *next_preemtion_time = getClk() + q;
      return;
     }
-  } else if (!isEmpty(readyQueue)) {
+    }
+    else if (!isEmpty(readyQueue)) {
     *currProcess = dequeue(readyQueue);
     runProcess(*currProcess);
     *next_preemtion_time = getClk() + q;
@@ -107,26 +108,30 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
   }
 }
 
-void HPF_algo(Queue *readyQueue, struct PCB **currProcess) {
-  if (*currProcess != NULL && !isEmpty(readyQueue)) {
-    PCB *top = peek(readyQueue);
+void HPF_algo(Queue *readyQueue, struct PCB **currProcess)
+{
+    if (*currProcess != NULL && !isEmpty(readyQueue))
+    {
+        PCB *top = peek(readyQueue);
 
-    if (top->priority < (*currProcess)->priority) {
-      kill((*currProcess)->pid, SIGSTOP);
-      (*currProcess)->state = 'W';
-      enqueue(readyQueue, (*currProcess));
-      printf("process %d stoped \n", (*currProcess)->pid);
-      // here supposed to call context switch ??
-
-      (*currProcess) = dequeue(readyQueue);
-      runProcess(*currProcess);
+        if (top->priority < (*currProcess)->priority)
+        {
+            kill((*currProcess)->pid, SIGSTOP);
+            (*currProcess)->state = 'W';
+            enqueue_priority(readyQueue, (*currProcess));
+            printf("process %d stoped \n", (*currProcess)->id);
+            // here supposed to call context switch ??
+            wait_N_secs(1);
+            (*currProcess) = dequeue(readyQueue);
+            runProcess(*currProcess);
+        }
     }
-  }
 
-  if ((*currProcess) == NULL && !isEmpty(readyQueue)) {
-    *currProcess = dequeue(readyQueue);
-    runProcess(*currProcess);
-  }
+    if ((*currProcess) == NULL && !isEmpty(readyQueue))
+    {
+        *currProcess = dequeue(readyQueue);
+        runProcess(*currProcess);
+    }
 }
 
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M) {
@@ -138,18 +143,19 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M) {
     runProcess(*currProcess);
   }
 }
-void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess) {
-  if (oldProcess != NULL && oldProcess->state == 'R') {
-    kill(oldProcess->pid, SIGSTOP);
-    oldProcess->state = 'W';
-    // Log "stopped"
-  }
-  wait_N_secs(1);
-  runProcess(newProcess);
+void handle_context_switch(struct PCB** oldProcess, struct PCB** newProcess) 
+{
+    if ((*oldProcess) != NULL && (*oldProcess)->state == 'R') {
+        kill((*oldProcess)->pid, SIGSTOP);
+        (*oldProcess)->state = 'W';
+        // Log "stopped" 
+    }
+    wait_N_secs(1);
+    runProcess(*newProcess);
 }
 
-void wait_N_secs(int N) {
-  int curr = getClk() + N;
-  while (curr > getClk())
-    ;
+void wait_N_secs(int N)
+{
+    int curr=getClk()+N;
+    while ( curr > getClk());
 }
