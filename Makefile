@@ -66,7 +66,9 @@ run: process_generator
 	./$(PROCESS_GEN_BIN)
 
 run-all: process_generator scheduler process clk
+	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(PROCESS_BIN) $(CLK_BIN)
 	cd process_generator; ../$(PROCESS_GEN_BIN)
 
 run-all-auto: process_generator scheduler process clk
+	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(PROCESS_BIN) $(CLK_BIN)
 	setsid sh -c 'cd process_generator; printf "3\n3\n3\n" | ../$(PROCESS_GEN_BIN)' || true

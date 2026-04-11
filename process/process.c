@@ -3,10 +3,18 @@
 
 /* Modify this file as needed*/
 int remainingtime;
+volatile sig_atomic_t prev_clk_tick;
+
+void on_cont(int signum) {
+    (void)signum;
+    prev_clk_tick = getClk();
+}
 
 int main(int argc, char *argv[])
 {
     initClk();
+    setvbuf(stdout, NULL, _IONBF, 0);
+    signal(SIGCONT, on_cont);
 
     if (argc < 2)
     {
@@ -24,27 +32,25 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    int prev = getClk();
+    prev_clk_tick = getClk();
     while (remainingtime > 0)
     {
         int curr = getClk();
-        if (prev != curr)
+        if (prev_clk_tick != curr)
         {
-            prev = curr;
-            printf("remaining time: %d\n", remainingtime);
+            prev_clk_tick = curr;
             remainingtime--;
+            printf("remaining time: %d\n", remainingtime);
         }
     }
-    printf("remaining time: %d\n", remainingtime);
+    
     printf("Process finished at time %d\n", getClk());
 
 
 
     destroyClk(false);
     kill(getppid(), SIGUSR1);
+    //
+    kill(getpid(), SIGTERM);
 
-    while (1)
-    {
-        pause();
-    }
 }

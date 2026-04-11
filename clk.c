@@ -39,6 +39,8 @@ int main(int argc, char * argv[])
     *shmaddr = clk; /* initialize shared memory */
     while (1)
     {
+        printf("===========================we are at time step %d ==========================\n", *shmaddr);
+
         sleep(1);
         (*shmaddr)++;
     }
