@@ -3,7 +3,7 @@
 
 int msgq_id;
 int receivingProcesses = 1;
-int context_switch = 0;
+//int context_switch = 0;
 Queue *readyQueue;
 struct PCB *currProcess = NULL;
 int quantum, N, M;
@@ -31,8 +31,8 @@ int main(int argc, char *argv[]) {
   char *end;
   int type = strtol(argv[1], &end, 10);
   if (type == 1) {
-    char *end;
-    quantum = strtol(argv[2], &end, 10);
+    char *e;
+    quantum = strtol(argv[2], &e, 10);
   } else if (type == 3) {
     char *e1, *e2;
     // review this
@@ -83,7 +83,10 @@ int main(int argc, char *argv[]) {
 
       struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
       *pcb = createPCB(process);
-      enqueue(readyQueue, pcb);
+      if(type==2) //HPF
+          enqueue_priority(readyQueue,pcb);
+      else
+          enqueue(readyQueue, pcb);
     }
 
     // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
@@ -101,9 +104,6 @@ int main(int argc, char *argv[]) {
       break;
     }
 
-    // handle context switch
-    if (context_switch)
-      handle_context_switch();
   }
 
   // TODO implement the scheduler
