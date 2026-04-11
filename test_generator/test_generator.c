@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
 #define null 0
 
 struct processData
@@ -14,7 +15,10 @@ struct processData
 int main(int argc, char * argv[])
 {
     FILE * pFile;
-    pFile = fopen("processes.txt", "w");
+
+    mkdir("../input/", 0755);
+
+    pFile = fopen("../input/processes.txt", "w");
     int no;
     struct processData pData;
     printf("Please enter the number of processes you want to generate: ");

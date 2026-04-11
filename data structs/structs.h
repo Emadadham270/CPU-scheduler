@@ -11,6 +11,13 @@ typedef struct processData {
   int priority;
 } processData;
 
+typedef enum logState {
+  START,
+  RESUME,
+  STOP,
+  FINISH,
+} logState;
+
 typedef struct PCB {
   int id;
   int arrival;
@@ -24,6 +31,7 @@ typedef struct PCB {
 
   pid_t pid;
   char state;
+  enum logState lState; // This is used for logging purposes
 
   struct PCB *next;
 } PCB;

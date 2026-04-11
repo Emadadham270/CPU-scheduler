@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
         {
             prev_clk_tick = curr;
             remainingtime--;
-            printf("remaining time: %d\n", remainingtime);
+            printf("%d: remaining time: %d\n",(int) getpid(), remainingtime);
         }
     }
     
