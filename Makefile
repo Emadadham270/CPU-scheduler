@@ -44,7 +44,7 @@ $(PROCESS_GEN_BIN): $(PROCESS_GEN_SRCS) | dirs
 	$(CC) $(CFLAGS) $(PROCESS_GEN_SRCS) -o $@
 
 $(SCHEDULER_BIN): $(SCHEDULER_SRCS) | dirs
-	$(CC) $(CFLAGS) $(SCHEDULER_SRCS) -o $@
+	$(CC) $(CFLAGS) $(SCHEDULER_SRCS) -o $@ -lm
 
 $(PROCESS_BIN): $(PROCESS_SRCS) | dirs
 	$(CC) $(CFLAGS) $(PROCESS_SRCS) -o $@

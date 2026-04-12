@@ -1,5 +1,6 @@
 #include "../data_structures/PCB/Sch_PCB.h"
 #include "scheduler.h"
+#include <math.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -281,8 +282,6 @@ void log_data(FILE *log_file, PCB *pcb)
     fprintf(log_file, "\n");
 }
 
-float clac_standard_deviation();
-
 void write_perf(struct PerfVars perf, FILE* perf_file) {
     printf("finish time: %d\narrival: %d\ntotal_runtime: %d\n", perf.finish_time, perf.first_arrival, perf.total_runtime);
     float cpu_util = (float)perf.total_runtime * 100.0 / (float)(perf.finish_time - perf.first_arrival);
@@ -290,10 +289,10 @@ void write_perf(struct PerfVars perf, FILE* perf_file) {
     perf.avg_Waiting /= perf.num_procs;
 
     // TODO get the array of WTA's for standard deviation (or we can use a rolling standard deviation)
-
+    // DONE: Decided on rolling standard deviation (Welford's)
+    float std_WTA = sqrtf(perf.M2_WTA / (perf.num_procs - 1));
     fprintf(perf_file, "CPU utilization = %.2f%%\n", cpu_util);
     fprintf(perf_file, "Avg WTA = %.2f\n", perf.avg_WTA);
     fprintf(perf_file, "Avg Waiting = %.2f\n", perf.avg_Waiting);
-    fprintf(perf_file, "Std WTA = [TODO]\n");
-
+    fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
 }

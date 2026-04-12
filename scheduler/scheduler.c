@@ -109,6 +109,15 @@ int main(int argc, char *argv[])
       // Add WTA and Waiting to perf struct
       float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
       perf.avg_WTA += WTA;
+      
+      // perform rolling standard deviation
+      // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+      perf.num_procs++;
+      float delta = WTA - perf.welford_mean_WTA;
+      perf.welford_mean_WTA += delta / perf.num_procs;
+      float delta2 = WTA - perf.welford_mean_WTA;
+      perf.M2_WTA += delta * delta2;
+
       perf.avg_Waiting += currProcess->waiting_time;
       perf.total_runtime += currProcess->runtime;
       perf.finish_time = currProcess->finish_time;
@@ -140,7 +149,6 @@ int main(int argc, char *argv[])
       if(perf.first_arrival == -1) {
         perf.first_arrival = pcb->arrival;
       }
-      perf.num_procs++;
       // printf("recieved process %d\n", pcb->id);
       if (type == 2) // HPF
         enqueue_priority(readyQueue, pcb);

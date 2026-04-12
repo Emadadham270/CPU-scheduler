@@ -24,6 +24,8 @@ typedef struct PerfVars{
   float avg_WTA;
   float avg_Waiting;
   float std_WTA;
+  float M2_WTA;           // Needed to perform rolling Standard deviation
+  float welford_mean_WTA; // Needed to perform rolling Standard deviation
   int total_runtime;
   int first_arrival;
   int finish_time;
