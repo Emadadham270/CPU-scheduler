@@ -3,7 +3,8 @@
 
 #include <sys/types.h>
 
-typedef struct processData {
+typedef struct processData
+{
   long mtype;
   int id;
   int arrival;
@@ -11,14 +12,16 @@ typedef struct processData {
   int priority;
 } processData;
 
-typedef enum logState {
+typedef enum logState
+{
   START,
   RESUME,
   STOP,
   FINISH,
 } logState;
 
-typedef struct PCB {
+typedef struct PCB
+{
   int id;
   int arrival;
   int runtime;
@@ -36,26 +39,38 @@ typedef struct PCB {
   struct PCB *next;
 } PCB;
 
-typedef struct PCBNode {
+typedef struct PCBNode
+{
   PCB *pcb;
   struct PCBNode *next;
 } PCBNode;
 
-typedef struct PCBQueue {
+typedef struct PCBQueue
+{
   PCBNode *front;
   PCBNode *rear;
   int size;
 } PCBQueue;
 
-typedef struct PGNode {
+typedef struct PGNode
+{
   processData data;
   struct PGNode *next;
 } PGNode;
 
-typedef struct PGQueue {
+typedef struct PGQueue
+{
   PGNode *front;
   PGNode *rear;
   int size;
 } PGQueue;
+
+union Semun
+{
+  int val;
+  struct semid_ds *buf;
+  unsigned short *array;
+  struct seminfo *__buf;
+};
 
 #endif

@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
         perror("Error in create message queue");
         exit(-1);
     }
+
     // TODO Initialization
     // 1. Read the input files.
     FILE *inputFile = fopen("input/processes.txt", "r");
@@ -79,15 +80,15 @@ int main(int argc, char *argv[])
     {
         if (type == 1)
         {
-            execl("outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
+            execl("../outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
         }
         else if (type == 2)
         {
-            execl("outFiles/scheduler.out", "scheduler.out", tStr, NULL);
+            execl("../outFiles/scheduler.out", "scheduler.out", tStr, NULL);
         }
         else if (type == 3)
         {
-            execl("outFiles/scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
+            execl("../outFiles/scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
         }
 
         perror("scheduler execl failed");
@@ -104,7 +105,7 @@ int main(int argc, char *argv[])
     if (clk_pid == 0)
     {
 
-        execl("outFiles/clk.out", "clk.out", NULL);
+        execl("../outFiles/clk.out", "clk.out", NULL);
         perror("clk execl failed");
         exit(1);
     }
@@ -116,6 +117,7 @@ int main(int argc, char *argv[])
 
     // 4. Use this function after creating the clock process to initialize clock
     initClk();
+
     // printf("%d",getClk());
     //  To get time use this
     //  int x = getClk();

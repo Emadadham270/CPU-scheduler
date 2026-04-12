@@ -75,38 +75,40 @@ void freeQueue(Queue *q)
     while (!isEmpty(q))
         dequeue(q);
     free(q);
- 
 }
 
-
-void enqueue_priority(Queue *q, PCB *pcb) {
+void enqueue_priority(Queue *q, PCB *pcb)
+{
     Node *node = malloc(sizeof(Node));
-    if (node == NULL) {
+    if (node == NULL)
+    {
         perror("malloc failed");
         exit(1);
     }
-    node->pcb  = pcb;
+    node->pcb = pcb;
     node->next = NULL;
 
-   
-    if (q->front == NULL || pcb->priority < q->front->pcb->priority) {
+    if (q->front == NULL || pcb->priority < q->front->pcb->priority)
+    {
         node->next = q->front;
-        q->front   = node;
+        q->front = node;
         if (q->rear == NULL)
             q->rear = node;
         q->size++;
         return;
     }
 
-
     Node *curr = q->front;
     while (curr->next != NULL &&
-            curr->next->pcb->priority <= pcb->priority) {
+           (curr->next->pcb->priority < pcb->priority ||
+            (curr->next->pcb->priority == pcb->priority &&
+             curr->next->pcb->arrival <= pcb->arrival)))
+    {
         curr = curr->next;
     }
 
-    node->next  = curr->next;
-    curr->next  = node;
+    node->next = curr->next;
+    curr->next = node;
 
     if (node->next == NULL)
         q->rear = node;
@@ -114,20 +116,22 @@ void enqueue_priority(Queue *q, PCB *pcb) {
     q->size++;
 }
 
-void update_waiting_times(Queue *q) {
+void update_waiting_times(Queue *q)
+{
     Node *curr = q->front;
-    while (curr != NULL) {
+    while (curr != NULL)
+    {
         curr->pcb->waiting_time++;
         curr = curr->next;
     }
 }
 
-
-
-int total_remaining_time(Queue *q) {
+int total_remaining_time(Queue *q)
+{
     int total = 0;
     Node *curr = q->front;
-    while (curr != NULL) {
+    while (curr != NULL)
+    {
         total += curr->pcb->remaining_time;
         curr = curr->next;
     }
@@ -135,12 +139,12 @@ int total_remaining_time(Queue *q) {
 }
 
 /*
-plan 
+plan
 
-1- insert sorted ==================> DONE 
+1- insert sorted ==================> DONE
 2- for a preemptive we need a function to check if there a higher pr process came ( not now but
-i have more than scenario 
-    . make a shm that the remaining time of the running process and check through 
+i have more than scenario
+    . make a shm that the remaining time of the running process and check through
     . signal the scheduler every time new one arrive ( i think bad sync)
 )
 3- update waiting time ============> DONE

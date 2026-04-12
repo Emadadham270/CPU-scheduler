@@ -5,9 +5,27 @@
 int remainingtime;
 volatile sig_atomic_t prev_clk_tick;
 
-void on_cont(int signum) {
+void on_cont(int signum)
+{
     (void)signum;
     prev_clk_tick = getClk();
+}
+
+void down(int sem)
+{
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = -1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    while (semop(sem, &op, 1) == -1)
+    {
+        if (errno == EINTR)
+            continue; // retry if interrupted by signal
+        perror("Error in down()");
+        exit(-1);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -31,26 +49,26 @@ int main(int argc, char *argv[])
         kill(getppid(), SIGUSR1);
         exit(-1);
     }
+    int sem_id = semget(ftok("../keyfile", 66), 1, 0666);
 
-    prev_clk_tick = getClk();
+    // prev_clk_tick = getClk();
     while (remainingtime > 0)
     {
-        int curr = getClk();
-        if (prev_clk_tick != curr)
-        {
-            prev_clk_tick = curr;
-            remainingtime--;
-            printf("%d: remaining time: %d\n",(int) getpid(), remainingtime);
-        }
+        // int curr = getClk();
+        // if (prev_clk_tick != curr)
+        // {
+        // prev_clk_tick = curr;
+        down(sem_id);
+        printf("%d: remaining time: %d\n", (int)getpid(), remainingtime);
+        remainingtime--;
+        //}
     }
-    
+
     printf("Process finished at time %d\n", getClk());
-
-
 
     destroyClk(false);
     kill(getppid(), SIGUSR1);
     //
-    kill(getpid(), SIGTERM);
-
+    // kill(getpid(), SIGTERM);
+    return 0;
 }
