@@ -20,6 +20,16 @@ typedef enum logState
   FINISH,
 } logState;
 
+typedef struct PerfVars{
+  float avg_WTA;
+  float avg_Waiting;
+  float std_WTA;
+  int total_runtime;
+  int first_arrival;
+  int finish_time;
+  int num_procs;
+} perfVars;
+
 typedef struct PCB
 {
   int id;
