@@ -11,6 +11,7 @@ extern int msgq_id;
 extern int sem_id,ready_sem;
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
+struct PerfVars initialize_perf();
 void runProcess(struct PCB *pcb, FILE *log_file);
 void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
              int *next_preemtion_time, FILE *log_file);
@@ -23,7 +24,7 @@ void cleanup(int signum);
 void create_log_files(FILE **log_file, FILE **perf_file);
 void write_comment_line(FILE *log_file);
 void log_data(FILE *log_file, PCB *pcb);
-void write_perf();
+void write_perf(struct PerfVars perf, FILE* perf_file);
 void up(int sem);
 void down(int sem);
 

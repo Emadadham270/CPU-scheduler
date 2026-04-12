@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
   signal(SIGUSR1, onProcessFinished);
   key_id = ftok("../keyfile", 65);
   msgq_id = msgget(key_id, 0666);
+  perfVars perf = initialize_perf();
 
   sem_id = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
   if (sem_id == -1)
@@ -104,8 +105,27 @@ int main(int argc, char *argv[])
       currProcess->finish_time = getClk();
       currProcess->remaining_time = 0;
       currProcess->state = 'F';
+      
+      // log data to scheduler.log
       currProcess->lState = FINISH;
       log_data(log_file, currProcess);
+      
+      // Add WTA and Waiting to perf struct
+      float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
+      perf.avg_WTA += WTA;
+      
+      // perform rolling standard deviation
+      // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+      perf.num_procs++;
+      float delta = WTA - perf.welford_mean_WTA;
+      perf.welford_mean_WTA += delta / perf.num_procs;
+      float delta2 = WTA - perf.welford_mean_WTA;
+      perf.M2_WTA += delta * delta2;
+
+      perf.avg_Waiting += currProcess->waiting_time;
+      perf.total_runtime += currProcess->runtime;
+      perf.finish_time = currProcess->finish_time;
+
       free(currProcess);
       currProcess = NULL;
       next_preemtion_time = -1;
@@ -128,6 +148,11 @@ int main(int argc, char *argv[])
 
       struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
       *pcb = createPCB(process);
+
+      // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
+      if(perf.first_arrival == -1) {
+        perf.first_arrival = pcb->arrival;
+      }
       // printf("recieved process %d\n", pcb->id);
       if (type == 2) // HPF
         enqueue_priority(readyQueue, pcb);
@@ -176,5 +201,9 @@ int main(int argc, char *argv[])
   semctl(sem_id, 0, IPC_RMID);
   semctl(ready_sem,0,IPC_RMID);
   semctl(sem_id_2, 0, IPC_RMID);
+  write_perf(perf, perf_file);
+
+  fclose(log_file);
+  fclose(perf_file);
   // destroyClk(true);
 }
