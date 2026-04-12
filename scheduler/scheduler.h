@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 extern int msgq_id;
-
+extern int sem_id,ready_sem;
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
@@ -26,5 +26,6 @@ void write_comment_line(FILE *log_file);
 void log_data(FILE *log_file, PCB *pcb);
 void write_perf(struct PerfVars perf, FILE* perf_file);
 void up(int sem);
+void down(int sem);
 
 #endif // SCHEDULER_H
