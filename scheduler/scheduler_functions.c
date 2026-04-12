@@ -1,5 +1,6 @@
 #include "../data_structures/PCB/Sch_PCB.h"
 #include "scheduler.h"
+#include <math.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +58,20 @@ struct PCB createPCB(processData p)
     pcb.next = NULL;
 
     return pcb;
+}
+
+struct PerfVars initialize_perf() {
+    struct PerfVars perf;
+    
+    perf.avg_Waiting = 0.0;
+    perf.avg_WTA = 0.0;
+    perf.first_arrival = -1;
+    perf.num_procs = 0;
+    perf.std_WTA = 0.0;
+    perf.total_runtime = 0;
+    perf.finish_time = -1;
+
+    return perf;
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)
@@ -257,12 +272,27 @@ void log_data(FILE *log_file, PCB *pcb)
         break;
     }
 
-    fprintf(log_file, "#At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d", getClk(), pcb->id, stateStr, pcb->arrival, pcb->runtime, pcb->remaining_time, pcb->waiting_time);
+    fprintf(log_file, "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d", getClk(), pcb->id, stateStr, pcb->arrival, pcb->runtime, pcb->remaining_time, pcb->waiting_time);
     if (finishFlag)
     {
-        int TA = pcb->finish_time - pcb->start_time;
+        int TA = pcb->finish_time - pcb->arrival;
         float WTA = ((float)TA) / pcb->runtime;
         fprintf(log_file, "\tTA\t%d\tWTA\t%.2f", TA, WTA);
     }
     fprintf(log_file, "\n");
+}
+
+void write_perf(struct PerfVars perf, FILE* perf_file) {
+    printf("finish time: %d\narrival: %d\ntotal_runtime: %d\n", perf.finish_time, perf.first_arrival, perf.total_runtime);
+    float cpu_util = (float)perf.total_runtime * 100.0 / (float)(perf.finish_time - perf.first_arrival);
+    perf.avg_WTA /= perf.num_procs;
+    perf.avg_Waiting /= perf.num_procs;
+
+    // TODO get the array of WTA's for standard deviation (or we can use a rolling standard deviation)
+    // DONE: Decided on rolling standard deviation (Welford's)
+    float std_WTA = sqrtf(perf.M2_WTA / (perf.num_procs - 1));
+    fprintf(perf_file, "CPU utilization = %.2f%%\n", cpu_util);
+    fprintf(perf_file, "Avg WTA = %.2f\n", perf.avg_WTA);
+    fprintf(perf_file, "Avg Waiting = %.2f\n", perf.avg_Waiting);
+    fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
 }
