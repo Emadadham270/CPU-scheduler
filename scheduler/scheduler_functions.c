@@ -7,10 +7,26 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <sys/sem.h>
 
 typedef short bool;
 void destroyClk(bool terminateAll);
 int getClk(void);
+
+void up(int sem)
+{
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = 1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    if (semop(sem, &op, 1) == -1)
+    {
+        perror("Error in up()");
+        exit(-1);
+    }
+}
 
 processData receive(int msgq_id)
 {
@@ -63,7 +79,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         {
             char runtime_str[16];
             snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
-            execl("outFiles/process.out", "process.out", runtime_str,
+            execl("../outFiles/process.out", "process.out", runtime_str,
                   (char *)NULL);
             perror("execl failed");
             _exit(1);
@@ -81,7 +97,9 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         kill(pcb->pid, SIGCONT);
     }
     pcb->state = 'R';
-    printf("process %d runnig \n", pcb->pid);
+    extern int dispatched_this_tick;
+    dispatched_this_tick = 1;
+    // printf("process %d runnig \n", pcb->pid);
 }
 
 void cleanup(int signum)
@@ -148,10 +166,10 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
 
             log_data(log_file, *currProcess);
 
-            enqueue(readyQueue, (*currProcess));
+            enqueue_priority(readyQueue, (*currProcess));
             printf("process %d stoped \n", (*currProcess)->pid);
-            // here supposed to call context switch ??
-
+            //  here supposed to call context switch ? ?
+            wait_N_secs(1);
             (*currProcess) = dequeue(readyQueue);
             runProcess(*currProcess, log_file);
         }
