@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 
     while (fgets(line, MAX_N, inputFile))
     {
-        if (line[0] == '#')
+        if (line[0] == '#' || line[0] == '\n')
             continue;
         processData p;
         p.mtype = 1;
@@ -79,15 +79,15 @@ int main(int argc, char *argv[])
     {
         if (type == 1)
         {
-            execl("../outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
+            execl("outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
         }
         else if (type == 2)
         {
-            execl("../outFiles/scheduler.out", "scheduler.out", tStr, NULL);
+            execl("outFiles/scheduler.out", "scheduler.out", tStr, NULL);
         }
         else if (type == 3)
         {
-            execl("../outFiles/scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
+            execl("outFiles/scheduler.out", "scheduler.out", tStr, nStr, mStr, NULL);
         }
 
         perror("scheduler execl failed");
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     if (clk_pid == 0)
     {
 
-        execl("../outFiles/clk.out", "clk.out", NULL);
+        execl("outFiles/clk.out", "clk.out", NULL);
         perror("clk execl failed");
         exit(1);
     }
@@ -113,16 +113,16 @@ int main(int argc, char *argv[])
         perror("fork clk failed");
         exit(1);
     }
-    
+
     // 4. Use this function after creating the clock process to initialize clock
     initClk();
-    //printf("%d",getClk());
-    // To get time use this
-    // int x = getClk();
-    // printf("current time is %d\n", x);
-    // TODO Generation Main Loop
-    // 5. Create a data structure for processes and provide it with its parameters.
-    // 6. Send the information to the scheduler at the appropriate time.
+    // printf("%d",getClk());
+    //  To get time use this
+    //  int x = getClk();
+    //  printf("current time is %d\n", x);
+    //  TODO Generation Main Loop
+    //  5. Create a data structure for processes and provide it with its parameters.
+    //  6. Send the information to the scheduler at the appropriate time.
 
     int lastTime = -1;
     while (!pg_isEmpty(q))
