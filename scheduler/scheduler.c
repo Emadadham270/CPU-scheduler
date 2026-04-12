@@ -2,6 +2,7 @@
 #include "../headers.h"
 
 int msgq_id;
+int sem_id,ready_sem,sem_id_2; 
 int receivingProcesses = 1;
 // int context_switch = 0;
 Queue *readyQueue;
@@ -26,7 +27,7 @@ int main(int argc, char *argv[])
   key_id = ftok("../keyfile", 65);
   msgq_id = msgget(key_id, 0666);
 
-  int sem_id = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
+  sem_id = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
   if (sem_id == -1)
   {
     perror("Error in create sem");
@@ -39,6 +40,8 @@ int main(int argc, char *argv[])
     perror("Error in semctl");
     exit(-1);
   }
+  sem_id_2 = semget(ftok("../keyfile", 66), 1, 0666);
+
   if (msgq_id == -1)
   {
     perror("Error in receive message queue");
@@ -66,7 +69,8 @@ int main(int argc, char *argv[])
   write_comment_line(log_file);
 
   initClk();
-  int ready_sem = semget(ftok("../keyfile", 67), 1, 0666 | IPC_CREAT);
+  setvbuf(stdout, NULL, _IONBF, 0);
+  ready_sem = semget(ftok("../keyfile", 67), 1, 0666 | IPC_CREAT);
   up(ready_sem);
   int last_tick = -1;
 
@@ -109,7 +113,7 @@ int main(int argc, char *argv[])
 
     if (currProcess)
     {
-      printf("current process is %d\n", currProcess->pid);
+      printf("current process is %d with pid= %d\n", currProcess->id,currProcess->pid);
     }
 
     // 2. Receive new arrivals
@@ -130,6 +134,7 @@ int main(int argc, char *argv[])
       else
         enqueue(readyQueue, pcb);
     }
+
 
     // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
     switch (type)
@@ -168,5 +173,8 @@ int main(int argc, char *argv[])
   // TODO implement the scheduler
   // upon termination release the clock resources.
   msgctl(msgq_id, IPC_RMID, NULL);
+  semctl(sem_id, 0, IPC_RMID);
+  semctl(ready_sem,0,IPC_RMID);
+  semctl(sem_id_2, 0, IPC_RMID);
   // destroyClk(true);
 }

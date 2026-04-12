@@ -107,6 +107,8 @@ void cleanup(int signum)
     (void)signum;
     // Release all IPC resources
     msgctl(msgq_id, IPC_RMID, NULL);
+    semctl(sem_id, 0, IPC_RMID);
+    semctl(ready_sem,0,IPC_RMID);
     // destroyClk(1);
     exit(0);
 }
