@@ -8,9 +8,11 @@
 #include <stdio.h>
 
 extern int msgq_id;
-extern int sem_id,ready_sem;
+extern int sem_id;
+extern int shmRT_id;
 extern int *shmRT_addr;
-extern int msgq_sub1_id, msgq_sub2_id,msgq_resp_id,load_shm_addr;
+extern int *load_shm_addr;
+extern int msgq_sub1_id, msgq_sub2_id,msgq_resp_id;
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
@@ -30,12 +32,13 @@ void write_perf(struct PerfVars perf, FILE* perf_file);
 void up(int sem);
 void down(int sem);
 
-int create_2cpu_ipcs(int *msgq_sub1_id, int *msgq_sub2_id,
-                     int *msgq_resp_id, int **load_shm_addr);
+int create_2cpu_ipcs();
+void destroy_2cpu_ipcs();
 void read_load_shm(int *load_shm_addr, int cpu_id, int *count, int *totalRT);
 void read_all_load_shm(int *load_shm_addr,
                        int *count1, int *totalRT1,
                        int *count2, int *totalRT2);
-void detach_2cpu_ipcs(int *load_shm_addr)
-int select_cpu(int *load_shm_addr);
+void detach_2cpu_ipcs();
+int select_cpu();
+processData pcb_to_processData(PCB *pcb);
 #endif // SCHEDULER_H

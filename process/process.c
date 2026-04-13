@@ -3,6 +3,8 @@
 #include "../data structs/structs.h"
 /* Modify this file as needed*/
 int remainingtime;
+int shmRT_id;
+int sem_id;
 volatile sig_atomic_t prev_clk_tick;
 
 void on_cont(int signum)
@@ -48,14 +50,14 @@ int main(int argc, char *argv[])
     initClk();
     setvbuf(stdout, NULL, _IONBF, 0);
     signal(SIGCONT, on_cont);
-
-    if (argc < 2)
+    
+    if (argc < 4)
     {
         perror("Error with args");
         kill(getppid(), SIGUSR1);
         exit(-1);
     }
-
+   // printf("%s %s %s",argv[1],argv[2],argv[3]);
     // TODO it needs to get the remaining time from somewhere
     // remainingtime = ??;
     // We will pass the remaining time as an argument from parent
@@ -65,23 +67,27 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    int shmRT_id = shmget(ftok("../keyfile", 70), 4, 0666);
-  if ((long)shmRT_id == -1)
-  {
-      perror("Error in process shm");
-      exit(-1);
-  }
-  int *shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
-  if ((long)shmRT_addr == -1)
-  {
-      perror("Error in attaching the shm of RT");
-      exit(-1);
-  }
+    if (!to_int(argv[2], &shmRT_id))
+    {
+        kill(getppid(), SIGUSR1);
+        exit(-1);
+    }
 
-
+    if (!to_int(argv[3], &sem_id))
+    {
+        kill(getppid(), SIGUSR1);
+        exit(-1);
+    }
+    printf("%d %d %d",remainingtime,shmRT_id,sem_id);
   
+    int *shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
+    if ((long)shmRT_addr == -1)
+    {
+        perror("Error in attaching the shm of RT");
+        exit(-1);
+    }
 
-    int sem_id = semget(ftok("../keyfile", 66), 1, 0666);
+
 
     // prev_clk_tick = getClk();
     while (remainingtime> 0)

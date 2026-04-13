@@ -93,6 +93,8 @@ struct PerfVars initialize_perf() {
     perf.std_WTA = 0.0;
     perf.total_runtime = 0;
     perf.finish_time = -1;
+    perf.M2_WTA = 0.0;
+    perf.welford_mean_WTA = 0.0;
 
     return perf;
 }
@@ -118,8 +120,13 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         if (pid == 0)
         {
             char runtime_str[16];
+            char shm_str[16];
+            char sem_str[16];
+
             snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
-            execl("../outFiles/process.out", "process.out", runtime_str,
+            snprintf(shm_str,sizeof(shm_str), "%d", shmRT_id);
+            snprintf(sem_str,sizeof(sem_str), "%d", sem_id);
+            execl("../outFiles/process.out", "process.out", runtime_str,shm_str,sem_str,
                   (char *)NULL);
             perror("execl failed");
             _exit(1);
@@ -147,7 +154,9 @@ void cleanup(int signum)
     // Release all IPC resources
     msgctl(msgq_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
-    semctl(ready_sem,0,IPC_RMID);
+    shmdt(shmaddr);
+    shmctl(shmRT_id,IPC_RMID,NULL);
+    detach_2cpu_ipcs();
     // destroyClk(1);
     exit(0);
 }
@@ -175,7 +184,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             (*currProcess)->state = 'W';
             (*currProcess)->lState = STOP;
             log_data(log_file, *currProcess);
-            printf("process %d stoped \n", (*currProcess)->pid);
+            printf("process %d stopped \n", (*currProcess)->pid);
             enqueue(readyQueue, (*currProcess));
 
             wait_N_secs(1);
@@ -214,7 +223,7 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
             log_data(log_file, *currProcess);
 
             enqueue_priority(readyQueue, (*currProcess));
-            printf("process %d stoped \n", (*currProcess)->pid);
+            printf("process %d stopped \n", (*currProcess)->pid);
             //  here supposed to call context switch ? ?
             wait_N_secs(1);
             (*currProcess) = dequeue(readyQueue);
@@ -236,10 +245,15 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
     (void)M;
     if (*currProcess == NULL && !isEmpty(readyQueue))
     {
-        create_2cpu_ipcs(msgq_sub1_id,msgq_sub2_id,msgq_resp_id,load_shm_addr);// we will make a global variable to save the id's of the ipcs and the address of the shm
-        
+        create_2cpu_ipcs();// we will make a global variable to save the id's of the ipcs and the address of the shm
         *currProcess = dequeue(readyQueue);
-        
+        processData p=pcb_to_processData(currProcess);
+        if(select_cpu()==1)
+            send_process_msg(msgq_sub1_id,&p,1);
+        else if(select_cpu()==2)
+            send_process_msg(msgq_sub2_id,&p,1);
+
+
         /*
         msgq 1 
         msgq 2
@@ -254,14 +268,12 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
     }
 }
 
-int checkNoproc(Queue *readyQueue, struct PCB *currProcess)
-{
-    //this will take the address of the shm and will decide wich will recive 
-    return 0;
-}
-
-
-
+// int checkNoproc(Queue *readyQueue, struct PCB *currProcess)
+// {
+//     //this will take the address of the shm and will decide which will recive 
+    
+//     return 0;
+// }
 void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE *log_file)
 {
     if (oldProcess != NULL && oldProcess->state == 'R')
@@ -351,13 +363,13 @@ void write_perf(struct PerfVars perf, FILE* perf_file) {
 }
 
 
-int create_2cpu_ipcs(int *msgq_sub1_id, int *msgq_sub2_id,
-                     int *msgq_resp_id, int **load_shm_addr)
+int create_2cpu_ipcs()
 {
     /* --- msgq_sub1: main scheduler → sub-scheduler #1 --- */
+
     key_t key_sub1 = ftok(KEYFILE_PATH, MSGQ_SUB1_PROJ);
-    *msgq_sub1_id = msgget(key_sub1, 0666 | IPC_CREAT);
-    if (*msgq_sub1_id == -1)
+    msgq_sub1_id = msgget(key_sub1, 0666 | IPC_CREAT);
+    if (msgq_sub1_id== -1)
     {
         perror("Error creating msgq_sub1");
         return -1;
@@ -365,8 +377,8 @@ int create_2cpu_ipcs(int *msgq_sub1_id, int *msgq_sub2_id,
 
     /* --- msgq_sub2: main scheduler → sub-scheduler #2 --- */
     key_t key_sub2 = ftok(KEYFILE_PATH, MSGQ_SUB2_PROJ);
-    *msgq_sub2_id = msgget(key_sub2, 0666 | IPC_CREAT);
-    if (*msgq_sub2_id == -1)
+    msgq_sub2_id = msgget(key_sub2, 0666 | IPC_CREAT);
+    if (msgq_sub2_id == -1)
     {
         perror("Error creating msgq_sub2");
         return -1;
@@ -374,8 +386,8 @@ int create_2cpu_ipcs(int *msgq_sub1_id, int *msgq_sub2_id,
 
     /* --- msgq_response: sub-schedulers → main scheduler --- */
     key_t key_resp = ftok(KEYFILE_PATH, MSGQ_RESPONSE_PROJ);
-    *msgq_resp_id = msgget(key_resp, 0666 | IPC_CREAT);
-    if (*msgq_resp_id == -1)
+    msgq_resp_id = msgget(key_resp, 0666 | IPC_CREAT);
+    if (msgq_resp_id == -1)
     {
         perror("Error creating msgq_response");
         return -1;
@@ -389,7 +401,7 @@ int create_2cpu_ipcs(int *msgq_sub1_id, int *msgq_sub2_id,
         perror("Error creating Load SHM");
         return -1;
     }
-    *load_shm_addr = (int *)shmat(load_shm_id, NULL, 0);
+    load_shm_addr = (int *)shmat(load_shm_id, NULL, 0);
     if ((long)*load_shm_addr == -1)
     {
         perror("Error attaching Load SHM");
@@ -397,10 +409,10 @@ int create_2cpu_ipcs(int *msgq_sub1_id, int *msgq_sub2_id,
     }
 
     /* Zero-initialize all 4 slots */
-    (*load_shm_addr)[LOAD_SHM_SLOT_COUNT1]   = 0;
-    (*load_shm_addr)[LOAD_SHM_SLOT_TOTALRT1] = 0;
-    (*load_shm_addr)[LOAD_SHM_SLOT_COUNT2]   = 0;
-    (*load_shm_addr)[LOAD_SHM_SLOT_TOTALRT2] = 0;
+    (load_shm_addr)[LOAD_SHM_SLOT_COUNT1]   = 0;
+    (load_shm_addr)[LOAD_SHM_SLOT_TOTALRT1] = 0;
+    (load_shm_addr)[LOAD_SHM_SLOT_COUNT2]   = 0;
+    (load_shm_addr)[LOAD_SHM_SLOT_TOTALRT2] = 0;
 
     return 0;
 }
@@ -432,8 +444,7 @@ void read_all_load_shm(int *load_shm_addr,
     *totalRT2 = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
 }
 
-void destroy_2cpu_ipcs(int msgq_sub1_id, int msgq_sub2_id,
-                       int msgq_resp_id, int *load_shm_addr)
+void destroy_2cpu_ipcs()
 {
     /* Remove the 3 message queues */
     if (msgq_sub1_id != -1)
@@ -461,13 +472,36 @@ void detach_2cpu_ipcs(int *load_shm_addr)
         shmdt(load_shm_addr);
 }
 
-int select_cpu(int *load_shm_addr)
+int select_cpu()
 {
     int c1,c2,rt1,rt2;
-    read_all_load_shm(load_shm_addr,c1,rt1,c2,rt2);
+    read_all_load_shm(load_shm_addr,&c1,&rt1,&c2,&rt2);
     if(c1<=c2)
         return 1;
     else 
          return 2;
 
+}
+
+int send_process_msg(int msgq_id, processData *p, long mtype)
+{
+    p->mtype = mtype;
+    if (msgsnd(msgq_id, p, sizeof(processData) - sizeof(long), 0) == -1)
+    {
+        perror("Error in send_process_msg");
+        return -1;
+    }
+    return 0;
+}
+
+
+processData pcb_to_processData(PCB *pcb)
+{
+    processData p;
+    p.mtype = MTYPE_STEAL_RESPONSE;
+    p.id = pcb->id;
+    p.arrival = pcb->arrival;
+    p.runtime = pcb->runtime;
+    p.priority = pcb->priority;
+    return p;
 }
