@@ -2,7 +2,7 @@
 #include "../headers.h"
 
 int msgq_id;
-int sem_id,ready_sem,sem_id_2; 
+int sem_id, ready_sem, sem_id_2;
 int receivingProcesses = 1;
 // int context_switch = 0;
 Queue *readyQueue;
@@ -101,15 +101,15 @@ int main(int argc, char *argv[])
       currProcess->finish_time = getClk();
       currProcess->remaining_time = 0;
       currProcess->state = 'F';
-      
+
       // log data to scheduler.log
       currProcess->lState = FINISH;
       log_data(log_file, currProcess);
-      
+
       // Add WTA and Waiting to perf struct
       float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
       perf.avg_WTA += WTA;
-      
+
       // perform rolling standard deviation
       // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
       perf.num_procs++;
@@ -184,12 +184,16 @@ int main(int argc, char *argv[])
         semctl(sem_id, 0, SETVAL, s);
         up(sem_id);
       }
-        }
+    }
   }
   // TODO implement the scheduler
   // upon termination release the clock resources.
   msgctl(msgq_id, IPC_RMID, NULL);
   semctl(sem_id, 0, IPC_RMID);
+  write_perf(perf, perf_file);
+
+  fclose(log_file);
+  fclose(perf_file);
 
   // destroyClk(true);
 }
