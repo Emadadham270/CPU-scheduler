@@ -1,37 +1,37 @@
 #include "../data_structures/PCB/Sch_PCB.h"
 #include "sub_scheduler.h"
-// #include <math.h> // Do we need this?
+
+#include <errno.h>
+#include <math.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/msg.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <string.h>
+#include <sys/msg.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#define MSGQ_SUB1_PROJ     75
-#define MSGQ_SUB2_PROJ     76
+#define MSGQ_SUB1_PROJ 75
+#define MSGQ_SUB2_PROJ 76
 #define MSGQ_RESPONSE_PROJ 77
-#define LOAD_SHM_PROJ      80
+#define LOAD_SHM_PROJ 80
 
-/* Load SHM layout: 4 ints = [count1, totalRT1, count2, totalRT2] */
-#define LOAD_SHM_SIZE      (4 * sizeof(int))
-#define LOAD_SHM_SLOT_COUNT1   0
+#define Tick_semaphore1 81
+#define Tick_semaphore2 82
+#define Shm_Rt1 83
+#define Shm_Rt2 84
+
+#define LOAD_SHM_SIZE (4 * sizeof(int))
+#define LOAD_SHM_SLOT_COUNT1 0
 #define LOAD_SHM_SLOT_TOTALRT1 1
-#define LOAD_SHM_SLOT_COUNT2   2
+#define LOAD_SHM_SLOT_COUNT2 2
 #define LOAD_SHM_SLOT_TOTALRT2 3
 
-/* Message types for the 3 message queues */
-#define MTYPE_NEW_PROCESS     1   /* main → sub: here's a new process          */
-#define MTYPE_TERMINATE       5   /* main → sub: no more processes, finish up  */
-#define MTYPE_STEAL_CMD      10   /* main → sub: remove your rear process      */
-#define MTYPE_STEAL_RESPONSE 11   /* sub → main: here's the stolen processData */
-#define MTYPE_STEAL_EMPTY    12   /* sub → main: queue is empty, nothing to steal */
-
-/* Keyfile path — same one used everywhere in the project */
 #define KEYFILE_PATH "../keyfile"
 
+int getClk(void);
 
 struct PCB createPCB(processData p)
 {
@@ -52,9 +52,10 @@ struct PCB createPCB(processData p)
     return pcb;
 }
 
-struct PerfVars initialize_perf() {
+struct PerfVars initialize_perf()
+{
     struct PerfVars perf;
-    
+
     perf.avg_Waiting = 0.0;
     perf.avg_WTA = 0.0;
     perf.first_arrival = -1;
@@ -62,6 +63,8 @@ struct PerfVars initialize_perf() {
     perf.std_WTA = 0.0;
     perf.total_runtime = 0;
     perf.finish_time = -1;
+    perf.M2_WTA = 0.0;
+    perf.welford_mean_WTA = 0.0;
 
     return perf;
 }
@@ -77,9 +80,7 @@ void create_log_files(FILE **log_file, FILE **perf_file, int which)
     *log_file = fopen(log_path, "w");
     *perf_file = fopen(perf_path, "w");
 
-    write_comment_line(log_file);
-
-    return;
+    write_comment_line(*log_file);
 }
 
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
@@ -97,6 +98,88 @@ void write_comment_line(FILE *log_file)
     fprintf(log_file, "%s", comment);
 }
 
+void log_data(FILE *log_file, PCB *pcb)
+{
+    char stateStr[100];
+    int finishFlag = 0;
+
+    switch (pcb->lState)
+    {
+    case START:
+        strcpy(stateStr, "started");
+        break;
+    case FINISH:
+        strcpy(stateStr, "finished");
+        finishFlag = 1;
+        break;
+    case STOP:
+        strcpy(stateStr, "stopped");
+        break;
+    case RESUME:
+        strcpy(stateStr, "resumed");
+        break;
+    default:
+        strcpy(stateStr, "state");
+        break;
+    }
+
+    fprintf(log_file,
+            "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d",
+            getClk(), pcb->id, stateStr, pcb->arrival, pcb->runtime,
+            pcb->remaining_time, pcb->waiting_time);
+
+    if (finishFlag)
+    {
+        int TA = pcb->finish_time - pcb->arrival;
+        float WTA = ((float)TA) / pcb->runtime;
+        fprintf(log_file, "\tTA\t%d\tWTA\t%.2f", TA, WTA);
+    }
+    fprintf(log_file, "\n");
+}
+
+void write_perf(struct PerfVars perf, FILE *perf_file)
+{
+    if (perf.num_procs == 0 || perf.finish_time <= perf.first_arrival)
+    {
+        fprintf(perf_file, "CPU utilization = 0.00%%\n");
+        fprintf(perf_file, "Avg WTA = 0.00\n");
+        fprintf(perf_file, "Avg Waiting = 0.00\n");
+        fprintf(perf_file, "Std WTA = 0.00\n");
+        return;
+    }
+
+    float cpu_util = (float)perf.total_runtime * 100.0f /
+                     (float)(perf.finish_time - perf.first_arrival);
+    perf.avg_WTA /= perf.num_procs;
+    perf.avg_Waiting /= perf.num_procs;
+
+    float std_WTA = 0.0f;
+    if (perf.num_procs > 1)
+        std_WTA = sqrtf(perf.M2_WTA / (perf.num_procs - 1));
+
+    fprintf(perf_file, "CPU utilization = %.2f%%\n", cpu_util);
+    fprintf(perf_file, "Avg WTA = %.2f\n", perf.avg_WTA);
+    fprintf(perf_file, "Avg Waiting = %.2f\n", perf.avg_Waiting);
+    fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
+}
+
+void up(int sem)
+{
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = 1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    if (semop(sem, &op, 1) == -1)
+    {
+        if (errno == EIDRM || errno == EINVAL)
+            return;
+        perror("Error in up()");
+        exit(-1);
+    }
+}
+
 int send_process_msg(int msgq_id, processData *p, long mtype)
 {
     p->mtype = mtype;
@@ -108,35 +191,25 @@ int send_process_msg(int msgq_id, processData *p, long mtype)
     return 0;
 }
 
-// extern int msgq_id;
-// extern int sem_id,ready_sem;
-// extern int *shmRT_addr;
-// extern int *load_shm_addr;
-// extern int my_msgq_id,msgq_resp_id;
-
-int attach_2cpu_ipcs(int cpu_id, int *my_msgq_id,
-                     int *msgq_resp_id, int **load_shm_addr)
+int attach_2cpu_ipcs(int cpu_id)
 {
-    /* --- Attach to this sub-scheduler's msgq --- */
     int proj_id = (cpu_id == 1) ? MSGQ_SUB1_PROJ : MSGQ_SUB2_PROJ;
     key_t key_sub = ftok(KEYFILE_PATH, proj_id);
-    *my_msgq_id = msgget(key_sub, 0666);
-    if (*my_msgq_id == -1)
+    my_msgq_id = msgget(key_sub, 0666);
+    if (my_msgq_id == -1)
     {
         perror("Sub-scheduler: Error attaching to my msgq");
         return -1;
     }
 
-    /* --- Attach to the response msgq --- */
     key_t key_resp = ftok(KEYFILE_PATH, MSGQ_RESPONSE_PROJ);
-    *msgq_resp_id = msgget(key_resp, 0666);
-    if (*msgq_resp_id == -1)
+    msgq_resp_id = msgget(key_resp, 0666);
+    if (msgq_resp_id == -1)
     {
         perror("Sub-scheduler: Error attaching to response msgq");
         return -1;
     }
 
-    /* --- Attach to the Load SHM --- */
     key_t key_shm = ftok(KEYFILE_PATH, LOAD_SHM_PROJ);
     int load_shm_id = shmget(key_shm, LOAD_SHM_SIZE, 0666);
     if (load_shm_id == -1)
@@ -144,8 +217,9 @@ int attach_2cpu_ipcs(int cpu_id, int *my_msgq_id,
         perror("Sub-scheduler: Error attaching to Load SHM");
         return -1;
     }
-    *load_shm_addr = (int *)shmat(load_shm_id, NULL, 0);
-    if ((long)*load_shm_addr == -1)
+
+    load_shm = (int *)shmat(load_shm_id, NULL, 0);
+    if ((long)load_shm == -1)
     {
         perror("Sub-scheduler: Error mapping Load SHM");
         return -1;
@@ -156,28 +230,27 @@ int attach_2cpu_ipcs(int cpu_id, int *my_msgq_id,
 
 void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT)
 {
-    //we may change this to only change to one slot at a time .
     if (cpu_id == 1)
     {
-        load_shm_addr[LOAD_SHM_SLOT_COUNT1]   = count;
+        load_shm_addr[LOAD_SHM_SLOT_COUNT1] = count;
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT1] = totalRT;
     }
     else
     {
-        load_shm_addr[LOAD_SHM_SLOT_COUNT2]   = count;
+        load_shm_addr[LOAD_SHM_SLOT_COUNT2] = count;
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT2] = totalRT;
     }
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)
 {
-    
-    *shmRT_addr=pcb->remaining_time;
+    *shmRT_addr = pcb->remaining_time;
     if (pcb->start_time == -1)
     {
         pcb->start_time = getClk();
         pcb->waiting_time = pcb->start_time - pcb->arrival;
     }
+
     if (pcb->pid == -1)
     {
         pid_t pid = fork();
@@ -194,17 +267,16 @@ void runProcess(struct PCB *pcb, FILE *log_file)
             char sem_str[16];
 
             snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
-            snprintf(shm_str,sizeof(shm_str), "%d", shmRT_id);
-            snprintf(sem_str,sizeof(sem_str), "%d", sem_id);
-            execl("../outFiles/process.out", "process.out", runtime_str,shm_str,sem_str,
+            snprintf(shm_str, sizeof(shm_str), "%d", shmRT_id);
+            snprintf(sem_str, sizeof(sem_str), "%d", sem_id);
+            execl("../outFiles/process.out", "process.out", runtime_str, shm_str, sem_str,
                   (char *)NULL);
             perror("execl failed");
             _exit(1);
         }
-        
+
         pcb->pid = pid;
         pcb->lState = START;
-
         log_data(log_file, pcb);
     }
     else
@@ -213,7 +285,52 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         log_data(log_file, pcb);
         kill(pcb->pid, SIGCONT);
     }
+
     pcb->state = 'R';
-   
-    // printf("process %d runnig \n", pcb->pid);
+}
+
+void create_ipcs(int cpu_id)
+{
+    int semKey;
+    int shmKey;
+
+    if (cpu_id == 1)
+    {
+        semKey = Tick_semaphore1;
+        shmKey = Shm_Rt1;
+    }
+    else
+    {
+        semKey = Tick_semaphore2;
+        shmKey = Shm_Rt2;
+    }
+
+    shmRT_id = shmget(shmKey, 4, IPC_CREAT | 0666);
+    if (shmRT_id == -1)
+    {
+        perror("Error in creating remaining time shm");
+        exit(-1);
+    }
+
+    shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
+    if ((long)shmRT_addr == -1)
+    {
+        perror("Error in attaching the shm of RT");
+        exit(-1);
+    }
+
+    sem_id = semget(semKey, 1, 0666 | IPC_CREAT);
+    if (sem_id == -1)
+    {
+        perror("Error in create sem");
+        exit(-1);
+    }
+
+    union Semun semun;
+    semun.val = 0;
+    if (semctl(sem_id, 0, SETVAL, semun) == -1)
+    {
+        perror("Error in semctl");
+        exit(-1);
+    }
 }

@@ -5,22 +5,31 @@
 
 #include "../data structs/structs.h"
 #include "../data_structures/PCB/Sch_PCB.h"
-#include "../scheduler/scheduler.h"
 
 #include <signal.h>
 #include <stdio.h>
 
-// struct PCB createPCB(processData p);
-// struct PerfVars initialize_perf();
-
-extern int msgq_id;
-extern int sem_id,ready_sem;
+extern int sem_id;
 extern int shmRT_id;
 extern int *shmRT_addr;
-extern int *load_shm_addr;
-extern int msgq_sub1_id, msgq_sub2_id,msgq_resp_id;
+extern int my_msgq_id;
+extern int msgq_resp_id;
+extern int *load_shm;
 
+struct PCB createPCB(processData p);
+struct PerfVars initialize_perf();
 void runProcess(struct PCB *pcb, FILE *log_file);
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file);
 void create_log_files(FILE **log_file, FILE **perf_file, int which);
+void write_comment_line(FILE *log_file);
+void log_data(FILE *log_file, PCB *pcb);
+void write_perf(struct PerfVars perf, FILE *perf_file);
+void up(int sem);
+
+int send_process_msg(int msgq_id, processData *p, long mtype);
+int attach_2cpu_ipcs(int cpu_id);
+void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT);
+void create_ipcs(int cpu_id);
+void steal_handler(int signum);
+
 #endif // SUB_SCHEDULER_H
