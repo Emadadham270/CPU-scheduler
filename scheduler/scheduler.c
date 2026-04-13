@@ -144,6 +144,12 @@ int main(int argc, char *argv[])
 
         struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
         *pcb = createPCB(process);
+
+        
+      // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
+      if(perf.first_arrival == -1) {
+        perf.first_arrival = pcb->arrival;
+      }
         // printf("recieved process %d\n", pcb->id);
         if (type == 2) // HPF
           enqueue_priority(readyQueue, pcb);
