@@ -2,6 +2,7 @@
 #include "../headers.h"
 
 int msgq_id;
+int sem_id,ready_sem,sem_id_2; 
 int receivingProcesses = 1;
 // int context_switch = 0;
 Queue *readyQueue;
@@ -24,8 +25,9 @@ int main(int argc, char *argv[])
   signal(SIGUSR1, onProcessFinished);
   key_id = ftok("../keyfile", 65);
   msgq_id = msgget(key_id, 0666);
+  perfVars perf = initialize_perf();
 
-  int sem_id = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
+  sem_id = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
   if (sem_id == -1)
   {
     perror("Error in create sem");
@@ -38,6 +40,8 @@ int main(int argc, char *argv[])
     perror("Error in semctl");
     exit(-1);
   }
+  sem_id_2 = semget(ftok("../keyfile", 66), 1, 0666);
+
   if (msgq_id == -1)
   {
     perror("Error in receive message queue");
@@ -97,8 +101,27 @@ int main(int argc, char *argv[])
       currProcess->finish_time = getClk();
       currProcess->remaining_time = 0;
       currProcess->state = 'F';
+      
+      // log data to scheduler.log
       currProcess->lState = FINISH;
       log_data(log_file, currProcess);
+      
+      // Add WTA and Waiting to perf struct
+      float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
+      perf.avg_WTA += WTA;
+      
+      // perform rolling standard deviation
+      // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+      perf.num_procs++;
+      float delta = WTA - perf.welford_mean_WTA;
+      perf.welford_mean_WTA += delta / perf.num_procs;
+      float delta2 = WTA - perf.welford_mean_WTA;
+      perf.M2_WTA += delta * delta2;
+
+      perf.avg_Waiting += currProcess->waiting_time;
+      perf.total_runtime += currProcess->runtime;
+      perf.finish_time = currProcess->finish_time;
+
       free(currProcess);
       currProcess = NULL;
       next_preemtion_time = -1;
