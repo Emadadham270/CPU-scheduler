@@ -4,11 +4,34 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ipc.h>
 #include <sys/msg.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <sys/sem.h>
+
+#define MSGQ_SUB1_PROJ     75
+#define MSGQ_SUB2_PROJ     76
+#define MSGQ_RESPONSE_PROJ 77
+#define LOAD_SHM_PROJ      80
+
+/* Load SHM layout: 4 ints = [count1, totalRT1, count2, totalRT2] */
+#define LOAD_SHM_SIZE      (4 * sizeof(int))
+#define LOAD_SHM_SLOT_COUNT1   0
+#define LOAD_SHM_SLOT_TOTALRT1 1
+#define LOAD_SHM_SLOT_COUNT2   2
+#define LOAD_SHM_SLOT_TOTALRT2 3
+
+/* Message types for the 3 message queues */
+#define MTYPE_NEW_PROCESS     1   /* main → sub: here's a new process          */
+#define MTYPE_TERMINATE       5   /* main → sub: no more processes, finish up  */
+#define MTYPE_STEAL_CMD      10   /* main → sub: remove your rear process      */
+#define MTYPE_STEAL_RESPONSE 11   /* sub → main: here's the stolen processData */
+#define MTYPE_STEAL_EMPTY    12   /* sub → main: queue is empty, nothing to steal */
+
+/* Keyfile path — same one used everywhere in the project */
+#define KEYFILE_PATH "../keyfile"
 
 typedef short bool;
 void destroyClk(bool terminateAll);
@@ -206,17 +229,38 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
     }
 }
 
+
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *log_file)
 {
     (void)N;
     (void)M;
-
     if (*currProcess == NULL && !isEmpty(readyQueue))
     {
+        create_2cpu_ipcs(msgq_sub1_id,msgq_sub2_id,msgq_resp_id,load_shm_addr);// we will make a global variable to save the id's of the ipcs and the address of the shm
+        
         *currProcess = dequeue(readyQueue);
-        runProcess(*currProcess, log_file);
+        
+        /*
+        msgq 1 
+        msgq 2
+
+        if checkNoproc() == 1
+            send at msgq 1 
+            else if 2
+                send to msgq 2
+            
+        
+        */
     }
 }
+
+int checkNoproc(Queue *readyQueue, struct PCB *currProcess)
+{
+    //this will take the address of the shm and will decide wich will recive 
+    return 0;
+}
+
+
 
 void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE *log_file)
 {
@@ -304,4 +348,126 @@ void write_perf(struct PerfVars perf, FILE* perf_file) {
     fprintf(perf_file, "Avg WTA = %.2f\n", perf.avg_WTA);
     fprintf(perf_file, "Avg Waiting = %.2f\n", perf.avg_Waiting);
     fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
+}
+
+
+int create_2cpu_ipcs(int *msgq_sub1_id, int *msgq_sub2_id,
+                     int *msgq_resp_id, int **load_shm_addr)
+{
+    /* --- msgq_sub1: main scheduler → sub-scheduler #1 --- */
+    key_t key_sub1 = ftok(KEYFILE_PATH, MSGQ_SUB1_PROJ);
+    *msgq_sub1_id = msgget(key_sub1, 0666 | IPC_CREAT);
+    if (*msgq_sub1_id == -1)
+    {
+        perror("Error creating msgq_sub1");
+        return -1;
+    }
+
+    /* --- msgq_sub2: main scheduler → sub-scheduler #2 --- */
+    key_t key_sub2 = ftok(KEYFILE_PATH, MSGQ_SUB2_PROJ);
+    *msgq_sub2_id = msgget(key_sub2, 0666 | IPC_CREAT);
+    if (*msgq_sub2_id == -1)
+    {
+        perror("Error creating msgq_sub2");
+        return -1;
+    }
+
+    /* --- msgq_response: sub-schedulers → main scheduler --- */
+    key_t key_resp = ftok(KEYFILE_PATH, MSGQ_RESPONSE_PROJ);
+    *msgq_resp_id = msgget(key_resp, 0666 | IPC_CREAT);
+    if (*msgq_resp_id == -1)
+    {
+        perror("Error creating msgq_response");
+        return -1;
+    }
+
+    /* --- Load SHM: [count1, totalRT1, count2, totalRT2] --- */
+    key_t key_shm = ftok(KEYFILE_PATH, LOAD_SHM_PROJ);
+    int load_shm_id = shmget(key_shm, LOAD_SHM_SIZE, 0666 | IPC_CREAT);
+    if (load_shm_id == -1)
+    {
+        perror("Error creating Load SHM");
+        return -1;
+    }
+    *load_shm_addr = (int *)shmat(load_shm_id, NULL, 0);
+    if ((long)*load_shm_addr == -1)
+    {
+        perror("Error attaching Load SHM");
+        return -1;
+    }
+
+    /* Zero-initialize all 4 slots */
+    (*load_shm_addr)[LOAD_SHM_SLOT_COUNT1]   = 0;
+    (*load_shm_addr)[LOAD_SHM_SLOT_TOTALRT1] = 0;
+    (*load_shm_addr)[LOAD_SHM_SLOT_COUNT2]   = 0;
+    (*load_shm_addr)[LOAD_SHM_SLOT_TOTALRT2] = 0;
+
+    return 0;
+}
+
+void read_load_shm(int *load_shm_addr, int cpu_id, int *count, int *totalRT)
+{
+    if (cpu_id == 1)
+    {
+        *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT1];
+        *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT1];
+    }
+    else
+    {
+        *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT2];
+        *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
+    }
+}
+
+/*
+ * Read BOTH CPUs' load info at once (used by main scheduler for comparison).
+ */
+void read_all_load_shm(int *load_shm_addr,
+                       int *count1, int *totalRT1,
+                       int *count2, int *totalRT2)
+{
+    *count1   = load_shm_addr[LOAD_SHM_SLOT_COUNT1];
+    *totalRT1 = load_shm_addr[LOAD_SHM_SLOT_TOTALRT1];
+    *count2   = load_shm_addr[LOAD_SHM_SLOT_COUNT2];
+    *totalRT2 = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
+}
+
+void destroy_2cpu_ipcs(int msgq_sub1_id, int msgq_sub2_id,
+                       int msgq_resp_id, int *load_shm_addr)
+{
+    /* Remove the 3 message queues */
+    if (msgq_sub1_id != -1)
+        msgctl(msgq_sub1_id, IPC_RMID, NULL);
+    if (msgq_sub2_id != -1)
+        msgctl(msgq_sub2_id, IPC_RMID, NULL);
+    if (msgq_resp_id != -1)
+        msgctl(msgq_resp_id, IPC_RMID, NULL);
+
+    /* Detach and remove the Load SHM */
+    if (load_shm_addr != NULL && (long)load_shm_addr != -1)
+    {
+        shmdt(load_shm_addr);
+        key_t key_shm = ftok(KEYFILE_PATH, LOAD_SHM_PROJ);
+        int shm_id = shmget(key_shm, LOAD_SHM_SIZE, 0666);
+        if (shm_id != -1)
+            shmctl(shm_id, IPC_RMID, NULL);
+    }
+}
+
+
+void detach_2cpu_ipcs(int *load_shm_addr)
+{
+    if (load_shm_addr != NULL && (long)load_shm_addr != -1)
+        shmdt(load_shm_addr);
+}
+
+int select_cpu(int *load_shm_addr)
+{
+    int c1,c2,rt1,rt2;
+    read_all_load_shm(load_shm_addr,c1,rt1,c2,rt2);
+    if(c1<=c2)
+        return 1;
+    else 
+         return 2;
+
 }
