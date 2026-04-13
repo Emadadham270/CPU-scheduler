@@ -64,10 +64,27 @@ int main(int argc, char *argv[])
         kill(getppid(), SIGUSR1);
         exit(-1);
     }
+
+    int shmRT_id = shmget(ftok("../keyfile", 70), 4, 0666);
+  if ((long)shmRT_id == -1)
+  {
+      perror("Error in process shm");
+      exit(-1);
+  }
+  int *shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
+  if ((long)shmRT_addr == -1)
+  {
+      perror("Error in attaching the shm of RT");
+      exit(-1);
+  }
+
+
+  
+
     int sem_id = semget(ftok("../keyfile", 66), 1, 0666);
 
     // prev_clk_tick = getClk();
-    while (remainingtime > 0)
+    while (remainingtime> 0)
     {
         printf("current process is %d\n", (int)getpid());
         // int curr = getClk();
@@ -76,8 +93,9 @@ int main(int argc, char *argv[])
         // prev_clk_tick = curr;
 
         down(sem_id);
-        printf("%d: remaining time: %d\n", (int)getpid(), remainingtime);
+        printf("%d: remaining time: %d\n", (int)getpid(), *shmRT_addr);
         remainingtime--;
+        *shmRT_addr=remainingtime;
 
         // }
     }

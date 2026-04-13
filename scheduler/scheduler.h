@@ -9,6 +9,7 @@
 
 extern int msgq_id;
 extern int sem_id,ready_sem;
+extern int *shmRT_addr;
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
