@@ -4,7 +4,6 @@
 int msgq_id;
 int sem_id;
 int receivingProcesses = 1;
-// int context_switch = 0;
 Queue *readyQueue;
 struct PCB *currProcess = NULL;
 int quantum, N, M;
@@ -13,8 +12,10 @@ int next_preemtion_time = -1;
 int *shmRT_addr;
 int *load_shm_addr;
 int msgq_sub1_id, msgq_sub2_id, msgq_resp_id;
-int shmRT_id;
-
+int shmRT_id,load_shm_id;
+int subCpu_created=0;
+int idArr[2];
+int N_time=0;
 void onProcessFinished(int signum)
 {
   (void)signum;
@@ -159,6 +160,11 @@ int main(int argc, char *argv[])
         if (process.mtype == 5)
         {
           receivingProcesses = 0;
+          if (subCpu_created)
+          {
+            send_process_msg(msgq_sub1_id, &process, 5);
+            send_process_msg(msgq_sub2_id, &process, 5);
+          }
           break;
         }
 
@@ -212,15 +218,21 @@ int main(int argc, char *argv[])
       }
     }
   }
-  // TODO implement the scheduler
+  // Wait for sub-schedulers to finish before cleanup
+  if (subCpu_created)
+  {
+    waitpid(idArr[0], NULL, 0);
+    waitpid(idArr[1], NULL, 0);
+  }
   // upon termination release the clock resources.
   msgctl(msgq_id, IPC_RMID, NULL);
   semctl(sem_id, 0, IPC_RMID);
   write_perf(perf, perf_file);
-  shmdt(shmaddr);
-  shmctl(shmRT_id,IPC_RMID,NULL);
+  shmdt(shmRT_addr);
+  shmctl(shmRT_id, IPC_RMID, NULL);
+  if (subCpu_created)
+    destroy_2cpu_ipcs();
   fclose(log_file);
   fclose(perf_file);
-  detach_2cpu_ipcs();
-  // destroyClk(true);
+  destroyClk(false);
 }

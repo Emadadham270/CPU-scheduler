@@ -1,12 +1,14 @@
 #include "../headers.h"
 #include "sub_scheduler.h"
+#include <string.h>
 
 // function predefinitions
 void stall_sig(int signum); // This function needs a global variable stalled, so it can't be in sub_scheduler.h
 void onProcessFinished(int signum);
-int total_remaining_time(Queue *q);
 void update_load_shm(void);
 static processData pcb_to_processData(PCB *pcb, long mtype);
+void steal_handler(int signum);
+
 
 // global vars
 
@@ -14,9 +16,12 @@ int cpu_id;
 int sem_id;       // tick-gate semaphore (ftok 81 or 82)
 int shmRT_id;     // remaining-time shm  (ftok 83 or 84)
 int *shmRT_addr;  // mapped address
-int msgq_sub_id;  // main → this sub (ftok 75 or 76)
+int my_msgq_id;  // main → this sub (ftok 75 or 76)
 int msgq_resp_id; // this sub → main (ftok 77)
 int *load_shm;    // [count1,totalRT1,count2,totalRT2] (ftok 80)
+
+int sem_proj; //sem key sent by the main 1-81 , 2-82
+int shmRT_proj; //shm key for remaining time sent by main 1-83 , 2-84
 
 // stall
 int stalled = 0;
@@ -33,6 +38,18 @@ int main(int argc, char *argv[])
 {
     signal(SIGUSR2, stall_sig);
     signal(SIGUSR1, onProcessFinished);
+    signal(SIGURG, steal_handler);
+    
+    
+
+    
+
+    // we need to choose another signal for the steal command, because SIGUSR1 is used for the process finished signal, and we need to make sure that the steal command signal handler will not interfere with the process finished signal handler.
+    if (argc < 2)
+    {
+        fprintf(stderr, "Usage: sub_scheduler <cpu_id> <sem_proj> <shmRT_proj> <msgsub_proj> <msgresp_proj> <loadshm_proj>\n");
+        return 1;
+    }
 
     /*
     1-it will take a the address from the msgq
@@ -48,18 +65,16 @@ int main(int argc, char *argv[])
     */
     // We need to include which cpu is running in args to write to log1 | log2 / perf1 | perf2
 
-    int sem_proj;
-    int shmRT_proj;
-    int msgsub_proj;
-    int msgresp_proj;
-    int loadshm_proj;
 
-    to_int(argv[1], cpu_id);
-    to_int(argv[2], sem_proj);
-    to_int(argv[3], shmRT_proj);
-    to_int(argv[4], msgsub_proj);
-    to_int(argv[5], msgresp_proj);
-    to_int(argv[6], loadshm_proj);
+    to_int(argv[1], &cpu_id);
+    
+    create_ipcs(cpu_id);
+    
+    readyQueue = createQueue();
+    if (attach_2cpu_ipcs(cpu_id) == -1)
+    {
+        return 1;
+    }
 
     FILE *log_file;
     FILE *perf_file;
@@ -84,6 +99,8 @@ int main(int argc, char *argv[])
         {
             stalled = 0;
         }
+
+        update_load_shm();
 
         if (currProcess && processFinishedSignal)
         {
@@ -116,9 +133,10 @@ int main(int argc, char *argv[])
             free(currProcess);
             currProcess = NULL;
         }
-
+        else if (!processFinishedSignal)
+        {
         processData pd;
-        while (msgrcv(msgq_sub_id, &pd, sizeof(processData) - sizeof(long),
+        while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long),
                       0, IPC_NOWAIT) != -1)
         {
             if (pd.mtype == 5)
@@ -135,29 +153,10 @@ int main(int argc, char *argv[])
                     perf.first_arrival = pcb->arrival;
                 enqueue(readyQueue, pcb);
             }
-            else if (pd.mtype == 10)
-            {
-                /* Steal command: send rear of ready queue back to main */
-                PCB *stolen = dequeue_rear(readyQueue);
-                processData resp;
-                if (stolen)
-                {
-                    resp = pcb_to_processData(stolen, 11);
-                    free(stolen);
-                }
-                else
-                {
-                    /* Nothing to steal — running process can't be taken */
-                    memset(&resp, 0, sizeof(resp));
-                    resp.mtype = 12;
-                }
-                if (msgsnd(msgq_resp_id, &resp,
-                           sizeof(processData) - sizeof(long), 0) == -1)
-                    perror("msgsnd steal resp");
-            }
         }
 
-        FCFS_algo(readyQueue, currProcess, log_file);
+        if(!stalled )
+            FCFS_algo(readyQueue, &currProcess, log_file);
 
         if (currProcess && !dispatched_this_tick && !stalled)
         {
@@ -168,7 +167,10 @@ int main(int argc, char *argv[])
         }
 
         dispatched_this_tick = 0;
+        }
     }
+
+    update_load_shm();
 
     write_perf(perf, perf_file);
     fclose(log_file);
@@ -178,8 +180,6 @@ int main(int argc, char *argv[])
     shmdt(load_shm);
     semctl(sem_id, 0, IPC_RMID);
     shmctl(shmRT_id, IPC_RMID, NULL);
-
-    update_load_shm();
 
     destroyClk(false);
     return 0;
@@ -194,22 +194,36 @@ void stall_sig(int signum)
     return;
 }
 
+void steal_handler(int signum)
+{
+    (void)signum;
+
+    // this sends the rear of the ready queue to the main scheduler.
+    //send the rear through the msgq_resp_id
+    PCB *stolen = dequeue_rear(readyQueue);
+    processData resp;
+    if (stolen)
+    {
+        resp = pcb_to_processData(stolen, 11);
+        free(stolen);
+    }
+    else
+    {
+        /* Nothing to steal — running process can't be taken */
+        memset(&resp, 0, sizeof(resp));
+        resp.mtype = 12;
+    }
+    if (msgsnd(msgq_resp_id, &resp,
+               sizeof(processData) - sizeof(long), 0) == -1)
+        perror("msgsnd steal resp");
+        
+}
+
+
 void onProcessFinished(int signum)
 {
     (void)signum;
     processFinishedSignal = 1;
-}
-
-int total_remaining_time(Queue *q)
-{
-    int total = 0;
-    Node *n = q->front;
-    while (n)
-    {
-        total += n->pcb->remaining_time;
-        n = n->next;
-    }
-    return total;
 }
 
 static processData pcb_to_processData(PCB *pcb, long mtype)

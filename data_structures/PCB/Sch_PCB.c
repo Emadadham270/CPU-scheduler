@@ -62,8 +62,7 @@ PCB *dequeue(Queue *q)
 
 PCB   *dequeue_rear(Queue* q) {
     if(isEmpty(q)) {
-        fprintf(stderr, "Queue underflow\n");
-        exit(1);
+        return NULL;  /* nothing to steal */
     }
 
     if(q->front == q->rear) {

@@ -10,6 +10,9 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
+#include <stdbool.h>
+#include <errno.h>
 
 #define MSGQ_SUB1_PROJ     75
 #define MSGQ_SUB2_PROJ     76
@@ -33,9 +36,9 @@
 /* Keyfile path — same one used everywhere in the project */
 #define KEYFILE_PATH "../keyfile"
 
-typedef short bool;
 void destroyClk(bool terminateAll);
 int getClk(void);
+void check_threshold(int M);
 
 void up(int sem)
 {
@@ -154,10 +157,11 @@ void cleanup(int signum)
     // Release all IPC resources
     msgctl(msgq_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
-    shmdt(shmaddr);
-    shmctl(shmRT_id,IPC_RMID,NULL);
-    detach_2cpu_ipcs();
-    // destroyClk(1);
+    shmdt(shmRT_addr);
+    shmctl(shmRT_id, IPC_RMID, NULL);
+    if (subCpu_created)
+        destroy_2cpu_ipcs();
+    destroyClk(false);
     exit(0);
 }
 
@@ -241,39 +245,61 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
 
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *log_file)
 {
-    (void)N;
-    (void)M;
-    if (*currProcess == NULL && !isEmpty(readyQueue))
+    (void)currProcess;
+    (void)log_file;
+
+    /* First call: create IPCs and fork two sub-schedulers */
+    if (!subCpu_created && !isEmpty(readyQueue))
     {
-        create_2cpu_ipcs();// we will make a global variable to save the id's of the ipcs and the address of the shm
-        *currProcess = dequeue(readyQueue);
-        processData p=pcb_to_processData(currProcess);
-        if(select_cpu()==1)
-            send_process_msg(msgq_sub1_id,&p,1);
-        else if(select_cpu()==2)
-            send_process_msg(msgq_sub2_id,&p,1);
+        subCpu_created = 1;
+        create_2cpu_ipcs();
 
+        for (int i = 1; i <= 2; i++)
+        {
+            pid_t pid = fork();
+            if (pid == -1)
+            {
+                perror("fork failed");
+                exit(1);
+            }
+            if (pid == 0) /* child only */
+            {
+                char cpu_id_str[16];
+                snprintf(cpu_id_str, sizeof(cpu_id_str), "%d", i);
+                execl("../outFiles/sub_scheduler.out", "sub_scheduler.out",
+                      cpu_id_str, (char *)NULL);
+                perror("execl sub_scheduler failed");
+                _exit(1);
+            }
+            idArr[i - 1] = pid; /* parent stores child PID */
+        }
+    }
 
-        /*
-        msgq 1 
-        msgq 2
+    /* Route all queued processes to the appropriate sub-scheduler */
+    while (!isEmpty(readyQueue))
+    {
+        PCB *pcb = dequeue(readyQueue);
+        processData p = pcb_to_processData(pcb);
+        int cpu = select_cpu();
+        if (cpu == 1)
+            send_process_msg(msgq_sub1_id, &p, 1);
+        else
+            send_process_msg(msgq_sub2_id, &p, 1);
+        free(pcb);
+    }
 
-        if checkNoproc() == 1
-            send at msgq 1 
-            else if 2
-                send to msgq 2
-            
-        
-        */
+    /* Every N ticks: check load balance and steal if needed */
+    if (subCpu_created)
+    {
+        N_time++;
+        if (N_time >= N)
+        {
+            N_time = 0;
+            check_threshold(M);
+        }
     }
 }
 
-// int checkNoproc(Queue *readyQueue, struct PCB *currProcess)
-// {
-//     //this will take the address of the shm and will decide which will recive 
-    
-//     return 0;
-// }
 void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE *log_file)
 {
     if (oldProcess != NULL && oldProcess->state == 'R')
@@ -348,6 +374,15 @@ void log_data(FILE *log_file, PCB *pcb)
 }
 
 void write_perf(struct PerfVars perf, FILE* perf_file) {
+    if (perf.num_procs == 0 || perf.finish_time <= perf.first_arrival)
+    {
+        fprintf(perf_file, "CPU utilization = 0.00%%\n");
+        fprintf(perf_file, "Avg WTA = 0.00\n");
+        fprintf(perf_file, "Avg Waiting = 0.00\n");
+        fprintf(perf_file, "Std WTA = 0.00\n");
+        return;
+    }
+
     printf("finish time: %d\narrival: %d\ntotal_runtime: %d\n", perf.finish_time, perf.first_arrival, perf.total_runtime);
     float cpu_util = (float)perf.total_runtime * 100.0 / (float)(perf.finish_time - perf.first_arrival);
     perf.avg_WTA /= perf.num_procs;
@@ -395,18 +430,31 @@ int create_2cpu_ipcs()
 
     /* --- Load SHM: [count1, totalRT1, count2, totalRT2] --- */
     key_t key_shm = ftok(KEYFILE_PATH, LOAD_SHM_PROJ);
-    int load_shm_id = shmget(key_shm, LOAD_SHM_SIZE, 0666 | IPC_CREAT);
+    load_shm_id = shmget(key_shm, LOAD_SHM_SIZE, 0666 | IPC_CREAT | IPC_EXCL);
     if (load_shm_id == -1)
     {
-        perror("Error creating Load SHM");
-        return -1;
+        if (errno == EEXIST || errno == EINVAL)
+        {
+            int old_id = shmget(key_shm, 1, 0666);
+            if (old_id != -1)
+                shmctl(old_id, IPC_RMID, NULL);
+
+            load_shm_id = shmget(key_shm, LOAD_SHM_SIZE, 0666 | IPC_CREAT | IPC_EXCL);
+        }
+
+        if (load_shm_id == -1)
+        {
+            perror("Error creating Load SHM");
+            return -1;
+        }
     }
     load_shm_addr = (int *)shmat(load_shm_id, NULL, 0);
-    if ((long)*load_shm_addr == -1)
+    if ((long)load_shm_addr == -1)
     {
         perror("Error attaching Load SHM");
         return -1;
     }
+
 
     /* Zero-initialize all 4 slots */
     (load_shm_addr)[LOAD_SHM_SLOT_COUNT1]   = 0;
@@ -417,19 +465,19 @@ int create_2cpu_ipcs()
     return 0;
 }
 
-void read_load_shm(int *load_shm_addr, int cpu_id, int *count, int *totalRT)
-{
-    if (cpu_id == 1)
-    {
-        *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT1];
-        *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT1];
-    }
-    else
-    {
-        *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT2];
-        *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
-    }
-}
+// void read_load_shm(int *load_shm_addr, int cpu_id, int *count, int *totalRT)
+// {
+//     if (cpu_id == 1)
+//     {
+//         *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT1];
+//         *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT1];
+//     }
+//     else
+//     {
+//         *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT2];
+//         *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
+//     }
+// }
 
 /*
  * Read BOTH CPUs' load info at once (used by main scheduler for comparison).
@@ -466,7 +514,7 @@ void destroy_2cpu_ipcs()
 }
 
 
-void detach_2cpu_ipcs(int *load_shm_addr)
+void detach_2cpu_ipcs()
 {
     if (load_shm_addr != NULL && (long)load_shm_addr != -1)
         shmdt(load_shm_addr);
@@ -504,4 +552,53 @@ processData pcb_to_processData(PCB *pcb)
     p.runtime = pcb->runtime;
     p.priority = pcb->priority;
     return p;
+}
+
+void check_threshold(int M)
+{
+    int c1, c2, rt1, rt2;
+    read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
+
+    int diff = abs(rt1 - rt2);
+    while (diff > M)
+    {
+        int busier_idx, lighter_msgq;
+        if (rt1 > rt2)
+        {
+            busier_idx = 0;            /* idArr[0] = CPU1 */
+            lighter_msgq = msgq_sub2_id; /* send stolen process to CPU2 */
+        }
+        else
+        {
+            busier_idx = 1;            /* idArr[1] = CPU2 */
+            lighter_msgq = msgq_sub1_id; /* send stolen process to CPU1 */
+        }
+
+        /* 1. Signal busier sub-scheduler to steal its rear process */
+        kill(idArr[busier_idx], SIGURG);
+
+        /* 2. Wait for response (blocking) */
+        processData resp;
+        if (msgrcv(msgq_resp_id, &resp, sizeof(processData) - sizeof(long), 0, 0) == -1)
+        {
+            perror("msgrcv steal response");
+            break;
+        }
+
+        /* 3. If nothing to steal (queue was empty), stop */
+        if (resp.mtype == 12)
+            break;
+
+        /* 4. Send stolen process to the lighter CPU */
+        send_process_msg(lighter_msgq, &resp, 1);
+
+        /* 5. Stall both CPUs for 3-second overhead */
+        kill(idArr[0], SIGUSR2);
+        kill(idArr[1], SIGUSR2);
+        wait_N_secs(3);
+
+        /* 6. Re-read and check again */
+        read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
+        diff = abs(rt1 - rt2);
+    }
 }

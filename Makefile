@@ -8,6 +8,7 @@ SCHEDULER_SRCS := scheduler/scheduler.c scheduler/scheduler_functions.c data_str
 PROCESS_SRCS := process/process.c process/process_functions.c
 TEST_GEN_SRCS := test_generator/test_generator.c test_generator/test_generator_functions.c
 PCB_SRCS := data_structures/PCB/Sch_PCB.c
+SUB_SCHED_SRCS := sub-sched/sub_scheduler.c sub-sched/sub_scheduler_functions.c data_structures/PCB/Sch_PCB.c
 
 PROCESS_GEN_BIN := $(OUT_DIR)/process_generator.out
 SCHEDULER_BIN := $(OUT_DIR)/scheduler.out
@@ -15,12 +16,13 @@ PROCESS_BIN := $(OUT_DIR)/process.out
 TEST_GEN_BIN := $(OUT_DIR)/test_generator.out
 CLK_BIN := $(OUT_DIR)/clk.out
 PCB_OBJ := $(OBJ_DIR)/data_structures/PCB/Sch_PCB.o
+SUB_SCHED_BIN := $(OUT_DIR)/sub_scheduler.out
 
-.PHONY: all build clean run run-all run-all-auto dirs process_generator scheduler process test_generator clk pcb folders
+.PHONY: all build clean run run-all run-all-auto dirs process_generator scheduler sub_scheduler process test_generator clk pcb folders
 
 all: build
 
-build: dirs process_generator scheduler process test_generator clk
+build: dirs process_generator scheduler sub_scheduler process test_generator clk
 
 dirs:
 	mkdir -p $(OUT_DIR)
@@ -58,6 +60,11 @@ $(CLK_BIN): clk.c | dirs
 $(PCB_OBJ): $(PCB_SRCS) | dirs
 	$(CC) $(CFLAGS) -c $(PCB_SRCS) -o $@
 
+sub_scheduler: $(SUB_SCHED_BIN)
+
+$(SUB_SCHED_BIN): $(SUB_SCHED_SRCS) | dirs
+	$(CC) $(CFLAGS) $(SUB_SCHED_SRCS) -o $@ -lm
+
 clean:
 	rm -f $(OUT_DIR)/*.out
 	rm -rf $(OBJ_DIR)
@@ -65,8 +72,8 @@ clean:
 run: process_generator
 	./$(PROCESS_GEN_BIN)
 
-run-all: process_generator scheduler process clk
-	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(PROCESS_BIN) $(CLK_BIN)
+run-all: process_generator scheduler sub_scheduler process clk
+	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(SUB_SCHED_BIN) $(PROCESS_BIN) $(CLK_BIN)
 	cd process_generator; ../$(PROCESS_GEN_BIN)
 
 run-all-auto: process_generator scheduler process clk
