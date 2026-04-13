@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
     // prev_clk_tick = getClk();
     while (remainingtime > 0)
     {
+        printf("current process is %d\n", (int)getpid());
         // int curr = getClk();
         // if (prev_clk_tick != curr)
         // {
