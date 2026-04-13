@@ -60,6 +60,31 @@ PCB *dequeue(Queue *q)
     return p;
 }
 
+PCB   *dequeue_rear(Queue* q) {
+    if(isEmpty(q)) {
+        fprintf(stderr, "Queue underflow\n");
+        exit(1);
+    }
+
+    if(q->front == q->rear) {
+        PCB *p = q->front->pcb;
+        free(q->front);
+        q->front = q->rear = NULL;
+        q->size--;
+        return p;
+    }
+
+    Node *trav = q->front;
+    while(trav->next != q->rear) {
+        trav = trav->next;
+    }
+    PCB *p = q->rear->pcb;
+    free(q->rear);
+    q->rear = trav;
+    q->rear->next = NULL;
+    return p;
+}
+
 PCB *peek(Queue *q)
 {
     if (isEmpty(q))
@@ -68,6 +93,15 @@ PCB *peek(Queue *q)
         exit(1);
     }
     return q->front->pcb;
+}
+
+PCB   *peek_rear(Queue *q) {
+    if (isEmpty(q))
+    {
+        fprintf(stderr, "Queue is empty!\n");
+        exit(1);
+    }
+    return q->rear->pcb;
 }
 
 void freeQueue(Queue *q)

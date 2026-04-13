@@ -15,7 +15,9 @@ void   enqueue(Queue *q, PCB *pcb);
 void   enqueue_priority(Queue *q, PCB *pcb);    
 
 PCB   *dequeue(Queue *q);
+PCB   *dequeue_rear(Queue *q);
 PCB   *peek(Queue *q);
+PCB   *peek_rear(Queue *q);
 
 void   update_waiting_times(Queue *q);          
 int    total_remaining_time(Queue *q);
