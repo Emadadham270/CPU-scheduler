@@ -97,8 +97,6 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         kill(pcb->pid, SIGCONT);
     }
     pcb->state = 'R';
-    extern int dispatched_this_tick;
-    dispatched_this_tick = 1;
     // printf("process %d runnig \n", pcb->pid);
 }
 
@@ -134,6 +132,8 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             log_data(log_file, *currProcess);
             printf("process %d stoped \n", (*currProcess)->pid);
             enqueue(readyQueue, (*currProcess));
+
+            wait_N_secs(1);
 
             /* Pick the next process from the queue */
             *currProcess = dequeue(readyQueue);
