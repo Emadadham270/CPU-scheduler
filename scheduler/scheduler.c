@@ -2,7 +2,7 @@
 #include "../headers.h"
 
 int msgq_id;
-int sem_id, ready_sem, sem_id_2;
+int sem_id;
 int receivingProcesses = 1;
 // int context_switch = 0;
 Queue *readyQueue;
@@ -11,6 +11,9 @@ int quantum, N, M;
 int processFinishedSignal = 0;
 int next_preemtion_time = -1;
 int *shmRT_addr;
+int *load_shm_addr;
+int msgq_sub1_id, msgq_sub2_id, msgq_resp_id;
+int shmRT_id;
 
 void onProcessFinished(int signum)
 {
@@ -28,7 +31,7 @@ int main(int argc, char *argv[])
   msgq_id = msgget(key_id, 0666);
   perfVars perf = initialize_perf();
 
-  int shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
+  shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
   if ((long)shmRT_id == -1)
   {
       perror("Error in creating remaining time shm");
@@ -55,7 +58,7 @@ int main(int argc, char *argv[])
     perror("Error in semctl");
     exit(-1);
   }
-  sem_id_2 = semget(ftok("../keyfile", 66), 1, 0666);
+  
 
   if (msgq_id == -1)
   {
@@ -218,6 +221,6 @@ int main(int argc, char *argv[])
   shmctl(shmRT_id,IPC_RMID,NULL);
   fclose(log_file);
   fclose(perf_file);
-
+  detach_2cpu_ipcs();
   // destroyClk(true);
 }
