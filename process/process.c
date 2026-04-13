@@ -28,7 +28,6 @@ void down(int sem)
     }
 }
 
-
 void up(int sem)
 {
     struct sembuf op;
@@ -66,19 +65,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
     int sem_id = semget(ftok("../keyfile", 66), 1, 0666);
-    int sem_id_2 = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
-    if (sem_id == -1)
-    {
-        perror("Error in create sem");
-        exit(-1);
-    }
-    union Semun semun;
-    semun.val = 0;
-    if (semctl(sem_id, 0, SETVAL, semun) == -1)
-    {
-        perror("Error in semctl");
-        exit(-1);
-    }
+
     // prev_clk_tick = getClk();
     while (remainingtime > 0)
     {
@@ -90,10 +77,10 @@ int main(int argc, char *argv[])
         down(sem_id);
         printf("%d: remaining time: %d\n", (int)getpid(), remainingtime);
         remainingtime--;
-        //up(sem_id_2);
-        //}
+
+        // }
     }
-    down(sem_id);
+
     printf("Process finished at time %d\n", getClk());
 
     destroyClk(false);
