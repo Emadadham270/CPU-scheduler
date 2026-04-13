@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
         // if (prev_clk_tick != curr)
         // {
         // prev_clk_tick = curr;
+        //
         down(sem_id);
         printf("%d: remaining time: %d\n", (int)getpid(), remainingtime);
         remainingtime--;
