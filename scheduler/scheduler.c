@@ -10,6 +10,7 @@ struct PCB *currProcess = NULL;
 int quantum, N, M;
 int processFinishedSignal = 0;
 int next_preemtion_time = -1;
+int *shmRT_addr;
 
 void onProcessFinished(int signum)
 {
@@ -26,6 +27,20 @@ int main(int argc, char *argv[])
   key_id = ftok("../keyfile", 65);
   msgq_id = msgget(key_id, 0666);
   perfVars perf = initialize_perf();
+
+  int shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
+  if ((long)shmRT_id == -1)
+  {
+      perror("Error in creating remaining time shm");
+      exit(-1);
+  }
+  shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
+  if ((long)shmRT_addr == -1)
+  {
+      perror("Error in attaching the shm of RT");
+      exit(-1);
+  }
+  
 
   sem_id = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
   if (sem_id == -1)
@@ -73,6 +88,7 @@ int main(int argc, char *argv[])
 
   while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
   {
+    
     int now = getClk();
     if (now == last_tick)
       continue; // spin until next tick
@@ -102,6 +118,7 @@ int main(int argc, char *argv[])
       currProcess->remaining_time = 0;
       currProcess->state = 'F';
 
+      currProcess->remaining_time = *shmRT_addr;
       // log data to scheduler.log
       currProcess->lState = FINISH;
       log_data(log_file, currProcess);
@@ -197,7 +214,8 @@ int main(int argc, char *argv[])
   msgctl(msgq_id, IPC_RMID, NULL);
   semctl(sem_id, 0, IPC_RMID);
   write_perf(perf, perf_file);
-
+  shmdt(shmaddr);
+  shmctl(shmRT_id,IPC_RMID,NULL);
   fclose(log_file);
   fclose(perf_file);
 

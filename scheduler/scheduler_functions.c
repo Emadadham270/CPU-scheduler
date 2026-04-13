@@ -76,6 +76,8 @@ struct PerfVars initialize_perf() {
 
 void runProcess(struct PCB *pcb, FILE *log_file)
 {
+    
+    *shmRT_addr=pcb->remaining_time;
     if (pcb->start_time == -1)
     {
         pcb->start_time = getClk();
@@ -99,7 +101,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
             perror("execl failed");
             _exit(1);
         }
-
+        
         pcb->pid = pid;
         pcb->lState = START;
 
@@ -112,6 +114,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         kill(pcb->pid, SIGCONT);
     }
     pcb->state = 'R';
+   
     // printf("process %d runnig \n", pcb->pid);
 }
 
@@ -144,6 +147,8 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
         {
             /* Preempt: stop the current process and put it back in the queue */
             kill((*currProcess)->pid, SIGSTOP);
+
+            (*currProcess)->remaining_time = *shmRT_addr;
             (*currProcess)->state = 'W';
             (*currProcess)->lState = STOP;
             log_data(log_file, *currProcess);
@@ -178,6 +183,8 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
         if (top->priority < (*currProcess)->priority)
         {
             kill((*currProcess)->pid, SIGSTOP);
+
+            (*currProcess)->remaining_time = *shmRT_addr;
             (*currProcess)->state = 'W';
             (*currProcess)->lState = STOP;
 
