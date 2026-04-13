@@ -77,6 +77,7 @@ struct PCB createPCB(processData p)
     pcb.priority = p.priority;
     pcb.start_time = -1;
     pcb.finish_time = -1;
+    pcb.last_stopped = -1;
     pcb.remaining_time = p.runtime;
     pcb.waiting_time = 0;
     pcb.state = 'W';
@@ -142,6 +143,8 @@ void runProcess(struct PCB *pcb, FILE *log_file)
     }
     else
     {
+        if(pcb->last_stopped >= 0)
+            pcb->waiting_time += (getClk() - pcb->last_stopped);
         pcb->lState = RESUME;
         log_data(log_file, pcb);
         kill(pcb->pid, SIGCONT);
@@ -182,6 +185,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
         if (getClk() >= *next_preemtion_time)
         {
             /* Preempt: stop the current process and put it back in the queue */
+            (*currProcess)->last_stopped = getClk();
             kill((*currProcess)->pid, SIGSTOP);
 
             (*currProcess)->remaining_time = *shmRT_addr;
@@ -218,6 +222,7 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
 
         if (top->priority < (*currProcess)->priority)
         {
+            (*currProcess)->last_stopped = getClk();
             kill((*currProcess)->pid, SIGSTOP);
 
             (*currProcess)->remaining_time = *shmRT_addr;
@@ -390,7 +395,7 @@ void write_perf(struct PerfVars perf, FILE* perf_file) {
 
     // TODO get the array of WTA's for standard deviation (or we can use a rolling standard deviation)
     // DONE: Decided on rolling standard deviation (Welford's)
-    float std_WTA = sqrtf(perf.M2_WTA / (perf.num_procs - 1));
+    float std_WTA = sqrtf(perf.M2_WTA / perf.num_procs);
     fprintf(perf_file, "CPU utilization = %.2f%%\n", cpu_util);
     fprintf(perf_file, "Avg WTA = %.2f\n", perf.avg_WTA);
     fprintf(perf_file, "Avg Waiting = %.2f\n", perf.avg_Waiting);

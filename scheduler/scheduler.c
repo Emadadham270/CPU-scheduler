@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
       }
 
       // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
-      if (now > 0)
+      if (now >= 0)
         switch (type)
         {
         case 1:

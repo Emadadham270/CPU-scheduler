@@ -43,6 +43,7 @@ struct PCB createPCB(processData p)
     pcb.priority = p.priority;
     pcb.start_time = -1;
     pcb.finish_time = -1;
+    pcb.last_stopped = -1;
     pcb.remaining_time = p.runtime;
     pcb.waiting_time = 0;
     pcb.state = 'W';
@@ -102,6 +103,12 @@ void log_data(FILE *log_file, PCB *pcb)
 {
     char stateStr[100];
     int finishFlag = 0;
+
+    // Special case for 2 CPU's
+    if(pcb->lState == STOLEN) {
+        fprintf(log_file, "At\ttime\t%d\tprocess\t%d\twas\tstolen\n", getClk(), pcb->id);
+        return;
+    }
 
     switch (pcb->lState)
     {
