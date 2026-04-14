@@ -41,6 +41,7 @@ FILE *perf_file;
 
 int main(int argc, char *argv[])
 {
+    signal(SIGINT, cleanup);
     signal(SIGUSR2, stall_sig);
     signal(SIGUSR1, onProcessFinished);
     signal(SIGURG, steal_handler);
@@ -84,8 +85,8 @@ int main(int argc, char *argv[])
     initClk();
 
     int last_tick = -1;
-
-    while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
+    int base2nd = (cpu_id == 1) ? 2 : 0; //don't terminate untill all the processes are done
+    while (!isEmpty(readyQueue) || receivingProcesses || currProcess||load_shm[base2nd+1])
     {
         int now = getClk();
 
@@ -149,6 +150,7 @@ int main(int argc, char *argv[])
                     *pcb = createPCB(pd);
                     if (perf.first_arrival == -1)
                         perf.first_arrival = pcb->arrival;
+                    printf("iam cpu %d and i recieved proceess %d-----------------------\n",cpu_id,pcb->id);
                     enqueue(readyQueue, pcb);
                     // int size = readyQueue->size;
                     // write_load_shm(load_shm, cpu_id, size, total_remaining_time(readyQueue));
@@ -158,7 +160,7 @@ int main(int argc, char *argv[])
             if(!stalled)
                 FCFS_algo(readyQueue, &currProcess, log_file);
 
-            if (currProcess && !dispatched_this_tick && !stalled)
+            if (currProcess && !stalled)
             {
                 union Semun s;
                 s.val = 0;
@@ -166,7 +168,6 @@ int main(int argc, char *argv[])
                 up(sem_id);
             }
 
-            dispatched_this_tick = 0;
         }
         update_load_shm();
     }

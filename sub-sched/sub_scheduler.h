@@ -34,5 +34,5 @@ int attach_2cpu_ipcs(int cpu_id);
 void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT);
 void create_ipcs(int cpu_id);
 void steal_handler(int signum);
-
+void cleanup(int signum);
 #endif // SUB_SCHEDULER_H

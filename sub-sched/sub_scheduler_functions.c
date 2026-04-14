@@ -17,7 +17,7 @@
 #define MSGQ_SUB2_PROJ 76
 #define MSGQ_RESPONSE_PROJ 77
 #define LOAD_SHM_PROJ 80
-#define LOAD_SEM_PROJ 81
+#define LOAD_SEM_PROJ 85
 
 #define Tick_semaphore1 81
 #define Tick_semaphore2 82
@@ -30,7 +30,7 @@
 #define LOAD_SHM_SLOT_COUNT2 2
 #define LOAD_SHM_SLOT_TOTALRT2 3
 
-#define KEYFILE_PATH "../keyfile"
+#define KEYFILE_PATH "../keyFile"
 
 int getClk(void);
 
@@ -381,4 +381,15 @@ void create_ipcs(int cpu_id)
     }
 
 
+}
+
+void cleanup(int signum)
+{
+    (void)signum;
+    
+    shmdt(shmRT_addr);
+    shmdt(load_shm);
+    semctl(sem_id, 0, IPC_RMID);
+    shmctl(shmRT_id, IPC_RMID, NULL);
+    exit(0);
 }
