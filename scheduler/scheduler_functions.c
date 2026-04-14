@@ -40,6 +40,13 @@ void destroyClk(bool terminateAll);
 int getClk(void);
 void check_threshold(int M);
 
+static void clear_pending_msgs(int qid)
+{
+    processData tmp;
+    while (msgrcv(qid, &tmp, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+        ;
+}
+
 void up(int sem)
 {
     struct sembuf op;
@@ -432,6 +439,11 @@ int create_2cpu_ipcs()
         perror("Error creating msgq_response");
         return -1;
     }
+
+    /* Start each run from clean queues to avoid replaying stale messages. */
+    clear_pending_msgs(msgq_sub1_id);
+    clear_pending_msgs(msgq_sub2_id);
+    clear_pending_msgs(msgq_resp_id);
 
     /* --- Load SHM: [count1, totalRT1, count2, totalRT2] --- */
     key_t key_shm = ftok(KEYFILE_PATH, LOAD_SHM_PROJ);

@@ -14,7 +14,11 @@ int main(int argc, char *argv[])
 
     key_id = ftok("../keyfile", 65);
 
-    msgq_id = msgget(key_id, 0666 | IPC_CREAT);
+    int old_msgq_id = msgget(key_id, 0666);
+    if (old_msgq_id != -1)
+        msgctl(old_msgq_id, IPC_RMID, (struct msqid_ds *)0);
+
+    msgq_id = msgget(key_id, 0666 | IPC_CREAT | IPC_EXCL);
     if (msgq_id == -1)
     {
         perror("Error in create message queue");

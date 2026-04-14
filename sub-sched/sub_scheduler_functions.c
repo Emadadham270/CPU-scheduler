@@ -88,7 +88,16 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
 {
     if (*currProcess == NULL && !isEmpty(readyQueue))
     {
+        int size = readyQueue->size;
+            printf("we got the point \n");
+            printf("cpu %d , size %d\n", cpu_id, size);
         *currProcess = dequeue(readyQueue);
+        int totalRT = total_remaining_time(readyQueue);
+        size = readyQueue->size;
+        printf("cpu %d , size %d , RT %d\n", cpu_id, size, totalRT);
+        printf("we out of the point \n");
+
+        write_load_shm(load_shm, cpu_id, size, totalRT);
         runProcess(*currProcess, log_file);
     }
 }

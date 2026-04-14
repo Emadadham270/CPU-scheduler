@@ -149,6 +149,8 @@ int main(int argc, char *argv[])
                     if (perf.first_arrival == -1)
                         perf.first_arrival = pcb->arrival;
                     enqueue(readyQueue, pcb);
+                    // int size = readyQueue->size;
+                    // write_load_shm(load_shm, cpu_id, size, total_remaining_time(readyQueue));
                 }
             }
 
@@ -241,8 +243,8 @@ void update_load_shm(void)
 {
     /* slots: cpu 1 → indices 0,1 ; cpu 2 → indices 2,3 */
     int base = (cpu_id == 1) ? 0 : 2;
-    int count = readyQueue->size + (currProcess != NULL ? 1 : 0);
-    int totalRT = total_remaining_time(readyQueue) + (currProcess != NULL ? *shmRT_addr : 0);
+    int count = readyQueue->size ;
+    int totalRT = total_remaining_time(readyQueue) ;
     load_shm[base] = count;
     load_shm[base + 1] = totalRT;
 }
