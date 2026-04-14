@@ -232,4 +232,6 @@ int main(int argc, char *argv[])
   fclose(log_file);
   fclose(perf_file);
   destroyClk(false);
+  semctl(load_sem_id, 0, IPC_RMID);
+
 }

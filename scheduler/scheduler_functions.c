@@ -187,6 +187,7 @@ void cleanup(int signum)
     semctl(sem_id, 0, IPC_RMID);
     shmdt(shmRT_addr);
     shmctl(shmRT_id, IPC_RMID, NULL);
+  semctl(load_sem_id, 0, IPC_RMID);
     if (subCpu_created)
         destroy_2cpu_ipcs();
     destroyClk(false);
@@ -283,7 +284,8 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
     if (!subCpu_created && !isEmpty(readyQueue))
     {
         subCpu_created = 1;
-        create_2cpu_ipcs();
+        if(create_2cpu_ipcs())
+            return;
 
         for (int i = 1; i <= 2; i++)
         {
@@ -512,11 +514,10 @@ int create_2cpu_ipcs()
 
     key_t semKey = ftok(KEYFILE_PATH, LOAD_SEM_PROJ);
 
-    load_sem_id = semget(semKey, 1, 0666 | IPC_CREAT);
+    load_sem_id = semget(semKey, 1, 0666 | IPC_CREAT |IPC_EXCL);
     if (load_sem_id == -1)
     {
-        perror("Error in create sem");
-        exit(-1);
+        load_sem_id = semget(semKey, 1, 0666);
     }
 
     union Semun semun;
@@ -526,8 +527,6 @@ int create_2cpu_ipcs()
         perror("Error in semctl");
         exit(-1);
     }
-
-
 
     return 0;
 }

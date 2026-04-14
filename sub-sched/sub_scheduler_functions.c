@@ -30,7 +30,7 @@
 #define LOAD_SHM_SLOT_COUNT2 2
 #define LOAD_SHM_SLOT_TOTALRT2 3
 
-#define KEYFILE_PATH "../keyFile"
+#define KEYFILE_PATH "../keyfile"
 
 int getClk(void);
 
@@ -258,7 +258,7 @@ int attach_2cpu_ipcs(int cpu_id)
     }
 
     key_t semKey = ftok(KEYFILE_PATH, LOAD_SEM_PROJ);
-    load_sem_id = semget(semKey, 1, 0666 | IPC_CREAT| IPC_EXCL);
+    load_sem_id = semget(semKey, 1, 0666);
     if (load_sem_id == -1)
     {
         perror("Error in retrieve sem");
@@ -337,18 +337,18 @@ void runProcess(struct PCB *pcb, FILE *log_file)
 
 void create_ipcs(int cpu_id)
 {
-    int semKey = ftok(KEYFILE_PATH, LOAD_SEM_PROJ);
+    int semKey;
     int shmKey;
 
     if (cpu_id == 1)
     {
-        semKey = Tick_semaphore1;
-        shmKey = Shm_Rt1;
+        semKey = ftok(KEYFILE_PATH,Tick_semaphore1);
+        shmKey = ftok(KEYFILE_PATH, Shm_Rt1);
     }
     else
     {
-        semKey = Tick_semaphore2;
-        shmKey = Shm_Rt2;
+        semKey = ftok(KEYFILE_PATH,Tick_semaphore2);
+        shmKey = ftok(KEYFILE_PATH, Shm_Rt2);
     }
 
     shmRT_id = shmget(shmKey, 4, IPC_CREAT | 0666);
