@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <stdio.h>
 
+extern int cpu_id;
 extern int sem_id;
 extern int shmRT_id;
 extern int *shmRT_addr;
