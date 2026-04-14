@@ -18,7 +18,7 @@
 #define MSGQ_SUB2_PROJ     76
 #define MSGQ_RESPONSE_PROJ 77
 #define LOAD_SHM_PROJ      80
-#define LOAD_SEM_PROJ      81
+#define LOAD_SEM_PROJ      85
 
 /* Load SHM layout: 4 ints = [count1, totalRT1, count2, totalRT2] */
 #define LOAD_SHM_SIZE          (4 * sizeof(int))
@@ -36,7 +36,7 @@
 #define MTYPE_STEAL_EMPTY    12   /* sub → main: queue is empty, nothing to steal */
 
 /* Keyfile path — same one used everywhere in the project */
-#define KEYFILE_PATH "../keyfile"
+#define KEYFILE_PATH "../keyFile"
 
 void destroyClk(bool terminateAll);
 int getClk(void);
@@ -187,7 +187,7 @@ void cleanup(int signum)
     semctl(sem_id, 0, IPC_RMID);
     shmdt(shmRT_addr);
     shmctl(shmRT_id, IPC_RMID, NULL);
-  semctl(load_sem_id, 0, IPC_RMID);
+    semctl(load_sem_id, 0, IPC_RMID);
     if (subCpu_created)
         destroy_2cpu_ipcs();
     destroyClk(false);
@@ -522,7 +522,7 @@ int create_2cpu_ipcs()
 
     union Semun semun;
     semun.val = 1;
-    if (semctl(sem_id, 0, SETVAL, semun) == -1)
+    if (semctl(load_sem_id, 0, SETVAL, semun) == -1)
     {
         perror("Error in semctl");
         exit(-1);
