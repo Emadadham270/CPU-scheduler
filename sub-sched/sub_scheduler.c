@@ -34,15 +34,15 @@ int receivingProcesses = 1;
 struct PCB *currProcess = NULL;
 int dispatched_this_tick = 0;
 
+// logs
+FILE *log_file;
+FILE *perf_file;
+
 int main(int argc, char *argv[])
 {
     signal(SIGUSR2, stall_sig);
     signal(SIGUSR1, onProcessFinished);
     signal(SIGURG, steal_handler);
-    
-    
-
-    
 
     // we need to choose another signal for the steal command, because SIGUSR1 is used for the process finished signal, and we need to make sure that the steal command signal handler will not interfere with the process finished signal handler.
     if (argc < 2)
@@ -75,9 +75,7 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
-
-    FILE *log_file;
-    FILE *perf_file;
+    
     create_log_files(&log_file, &perf_file, cpu_id);
     struct PerfVars perf = initialize_perf();
 
@@ -155,7 +153,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if(!stalled )
+        if(!stalled)
             FCFS_algo(readyQueue, &currProcess, log_file);
 
         if (currProcess && !dispatched_this_tick && !stalled)
@@ -204,6 +202,8 @@ void steal_handler(int signum)
     processData resp;
     if (stolen)
     {
+        stolen->lState = STOLEN;
+        log_data(log_file, stolen);
         resp = pcb_to_processData(stolen, 11);
         free(stolen);
     }

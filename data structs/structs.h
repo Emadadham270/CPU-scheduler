@@ -18,6 +18,7 @@ typedef enum logState
   RESUME,
   STOP,
   FINISH,
+  STOLEN,
 } logState;
 
 typedef struct PerfVars{
@@ -43,7 +44,8 @@ typedef struct PCB
   int waiting_time;
   int start_time;
   int finish_time;
-
+  int last_stopped;
+  
   pid_t pid;
   char state;
   enum logState lState; // This is used for logging purposes
