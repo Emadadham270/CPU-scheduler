@@ -35,16 +35,16 @@ int main(int argc, char *argv[])
   shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
   if ((long)shmRT_id == -1)
   {
-      perror("Error in creating remaining time shm");
-      exit(-1);
+    perror("Error in creating remaining time shm");
+    exit(-1);
   }
   shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
   if ((long)shmRT_addr == -1)
   {
-      perror("Error in attaching the shm of RT");
-      exit(-1);
+    perror("Error in attaching the shm of RT");
+    exit(-1);
   }
-  
+
 
   sem_id = semget(ftok("../keyfile", 66), 1, 0666 | IPC_CREAT);
   if (sem_id == -1)
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     perror("Error in semctl");
     exit(-1);
   }
-  
+
 
   if (msgq_id == -1)
   {
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 
   while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
   {
-    
+
     int now = getClk();
     if (now == last_tick)
       continue; // spin until next tick
@@ -147,10 +147,6 @@ int main(int argc, char *argv[])
       currProcess = NULL;
       next_preemtion_time = -1;
     }
-    // if (currProcess)
-    // {
-    //   printf("current process is %d\n", currProcess->id);
-    // }
     else if (!processFinishedSignal)
     {
       // 2. Receive new arrivals
@@ -159,32 +155,32 @@ int main(int argc, char *argv[])
       {
         if (process.mtype == 5)
         {
-          receivingProcesses = 0;
           if (subCpu_created)
           {
             send_process_msg(msgq_sub1_id, &process, 5);
             send_process_msg(msgq_sub2_id, &process, 5);
           }
+          receivingProcesses = 0;
           break;
         }
 
         struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
         *pcb = createPCB(process);
 
-        
-      // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
-      if(perf.first_arrival == -1) {
-        perf.first_arrival = pcb->arrival;
-      }
+
+        // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
+        if(perf.first_arrival == -1) {
+          perf.first_arrival = pcb->arrival;
+        }
         // printf("recieved process %d\n", pcb->id);
         if (type == 2) // HPF
           enqueue_priority(readyQueue, pcb);
         else
           enqueue(readyQueue, pcb);
-      }
+              }
 
       // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
-      if (now >= 0)
+      if (now > 0)
         switch (type)
         {
         case 1:

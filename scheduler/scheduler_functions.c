@@ -89,7 +89,7 @@ struct PCB createPCB(processData p)
 
 struct PerfVars initialize_perf() {
     struct PerfVars perf;
-    
+
     perf.avg_Waiting = 0.0;
     perf.avg_WTA = 0.0;
     perf.first_arrival = -1;
@@ -105,7 +105,7 @@ struct PerfVars initialize_perf() {
 
 void runProcess(struct PCB *pcb, FILE *log_file)
 {
-    
+
     *shmRT_addr=pcb->remaining_time;
     if (pcb->start_time == -1)
     {
@@ -114,6 +114,8 @@ void runProcess(struct PCB *pcb, FILE *log_file)
     }
     if (pcb->pid == -1)
     {
+        pcb->lState = START;
+        log_data(log_file, pcb);
         pid_t pid = fork();
         if (pid == -1)
         {
@@ -130,16 +132,13 @@ void runProcess(struct PCB *pcb, FILE *log_file)
             snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
             snprintf(shm_str,sizeof(shm_str), "%d", shmRT_id);
             snprintf(sem_str,sizeof(sem_str), "%d", sem_id);
-            execl("../outFiles/process.out", "process.out", runtime_str,shm_str,sem_str,
+            execl("../outFiles/process.out", "process.out", runtime_str, shm_str, sem_str,
                   (char *)NULL);
             perror("execl failed");
             _exit(1);
         }
-        
-        pcb->pid = pid;
-        pcb->lState = START;
 
-        log_data(log_file, pcb);
+        pcb->pid = pid;
     }
     else
     {
@@ -150,7 +149,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         kill(pcb->pid, SIGCONT);
     }
     pcb->state = 'R';
-   
+
     // printf("process %d runnig \n", pcb->pid);
 }
 
@@ -185,13 +184,14 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
         if (getClk() >= *next_preemtion_time)
         {
             /* Preempt: stop the current process and put it back in the queue */
+            (*currProcess)->lState = STOP;
+            log_data(log_file, *currProcess);
             (*currProcess)->last_stopped = getClk();
             kill((*currProcess)->pid, SIGSTOP);
 
             (*currProcess)->remaining_time = *shmRT_addr;
             (*currProcess)->state = 'W';
-            (*currProcess)->lState = STOP;
-            log_data(log_file, *currProcess);
+
             printf("process %d stopped \n", (*currProcess)->pid);
             enqueue(readyQueue, (*currProcess));
 
@@ -528,11 +528,11 @@ void detach_2cpu_ipcs()
 int select_cpu()
 {
     int c1,c2,rt1,rt2;
-    read_all_load_shm(load_shm_addr,&c1,&rt1,&c2,&rt2);
-    if(c1<=c2)
+    read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
+    if (c1<=c2)
         return 1;
-    else 
-         return 2;
+    else
+        return 2;
 
 }
 

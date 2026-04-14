@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     // we need to choose another signal for the steal command, because SIGUSR1 is used for the process finished signal, and we need to make sure that the steal command signal handler will not interfere with the process finished signal handler.
     if (argc < 2)
     {
-        fprintf(stderr, "Usage: sub_scheduler <cpu_id> <sem_proj> <shmRT_proj> <msgsub_proj> <msgresp_proj> <loadshm_proj>\n");
+        fprintf(stderr, "Usage: sub_scheduler <cpu_id>\n");
         return 1;
     }
 
@@ -67,15 +67,15 @@ int main(int argc, char *argv[])
 
 
     to_int(argv[1], &cpu_id);
-    
+
     create_ipcs(cpu_id);
-    
+
     readyQueue = createQueue();
     if (attach_2cpu_ipcs(cpu_id) == -1)
     {
         return 1;
     }
-    
+
     create_log_files(&log_file, &perf_file, cpu_id);
     struct PerfVars perf = initialize_perf();
 
@@ -90,15 +90,14 @@ int main(int argc, char *argv[])
 
         if (now == last_tick)
             continue;
-
+        int base = (cpu_id == 1) ? 0 : 2;
+        printf("I am cpu %d and i have %d at time %d\n", cpu_id, load_shm[base], now);
         last_tick = now;
 
         if (stalled && now >= stall_end_time)
         {
             stalled = 0;
         }
-
-        update_load_shm();
 
         if (currProcess && processFinishedSignal)
         {
@@ -133,47 +132,48 @@ int main(int argc, char *argv[])
         }
         else if (!processFinishedSignal)
         {
-        processData pd;
-        while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long),
-                      0, IPC_NOWAIT) != -1)
-        {
-            if (pd.mtype == 5)
+            processData pd;
+            while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long),
+                          0, IPC_NOWAIT) != -1)
             {
-                receivingProcesses = 0;
-                break;
+                if (pd.mtype == 5)
+                {
+                    receivingProcesses = 0;
+                    break;
+                }
+
+                if (pd.mtype == 1)
+                {
+                    PCB *pcb = malloc(sizeof(PCB));
+                    *pcb = createPCB(pd);
+                    if (perf.first_arrival == -1)
+                        perf.first_arrival = pcb->arrival;
+                    enqueue(readyQueue, pcb);
+                }
             }
 
-            if (pd.mtype == 1)
+            if(!stalled)
+                FCFS_algo(readyQueue, &currProcess, log_file);
+
+            if (currProcess && !dispatched_this_tick && !stalled)
             {
-                PCB *pcb = malloc(sizeof(PCB));
-                *pcb = createPCB(pd);
-                if (perf.first_arrival == -1)
-                    perf.first_arrival = pcb->arrival;
-                enqueue(readyQueue, pcb);
+                union Semun s;
+                s.val = 0;
+                semctl(sem_id, 0, SETVAL, s);
+                up(sem_id);
             }
-        }
 
-        if(!stalled)
-            FCFS_algo(readyQueue, &currProcess, log_file);
-
-        if (currProcess && !dispatched_this_tick && !stalled)
-        {
-            union Semun s;
-            s.val = 0;
-            semctl(sem_id, 0, SETVAL, s);
-            up(sem_id);
+            dispatched_this_tick = 0;
         }
-
-        dispatched_this_tick = 0;
-        }
+        update_load_shm();
     }
-
+    printf("sub %d finished--------------------------\n", cpu_id);
     update_load_shm();
 
     write_perf(perf, perf_file);
     fclose(log_file);
     fclose(perf_file);
- 
+
     shmdt(shmRT_addr);
     shmdt(load_shm);
     semctl(sem_id, 0, IPC_RMID);
@@ -216,7 +216,7 @@ void steal_handler(int signum)
     if (msgsnd(msgq_resp_id, &resp,
                sizeof(processData) - sizeof(long), 0) == -1)
         perror("msgsnd steal resp");
-        
+
 }
 
 
