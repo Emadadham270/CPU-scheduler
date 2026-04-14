@@ -260,6 +260,8 @@ void runProcess(struct PCB *pcb, FILE *log_file)
 
     if (pcb->pid == -1)
     {
+        pcb->lState = START;
+        log_data(log_file, pcb);
         pid_t pid = fork();
         if (pid == -1)
         {
@@ -283,8 +285,6 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         }
 
         pcb->pid = pid;
-        pcb->lState = START;
-        log_data(log_file, pcb);
     }
     else
     {
