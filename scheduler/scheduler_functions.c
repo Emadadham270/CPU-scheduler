@@ -18,9 +18,11 @@
 #define MSGQ_SUB2_PROJ     76
 #define MSGQ_RESPONSE_PROJ 77
 #define LOAD_SHM_PROJ      80
+#define LOAD_SEM_PROJ      81
 
 /* Load SHM layout: 4 ints = [count1, totalRT1, count2, totalRT2] */
-#define LOAD_SHM_SIZE      (4 * sizeof(int))
+#define LOAD_SHM_SIZE          (4 * sizeof(int))
+#define LOAD_SEM_NUM           1
 #define LOAD_SHM_SLOT_COUNT1   0
 #define LOAD_SHM_SLOT_TOTALRT1 1
 #define LOAD_SHM_SLOT_COUNT2   2
@@ -40,11 +42,21 @@ void destroyClk(bool terminateAll);
 int getClk(void);
 void check_threshold(int M);
 
-static void clear_pending_msgs(int qid)
+void down(int sem)
 {
-    processData tmp;
-    while (msgrcv(qid, &tmp, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
-        ;
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = -1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    while (semop(sem, &op, 1) == -1)
+    {
+        if (errno == EINTR)
+            continue; // retry if interrupted by signal
+        perror("Error in down()");
+        exit(-1);
+    }
 }
 
 void up(int sem)
@@ -60,6 +72,13 @@ void up(int sem)
         perror("Error in up()");
         exit(-1);
     }
+}
+
+static void clear_pending_msgs(int qid)
+{
+    processData tmp;
+    while (msgrcv(qid, &tmp, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+        ;
 }
 
 processData receive(int msgq_id)
@@ -292,11 +311,23 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
     {
         PCB *pcb = dequeue(readyQueue);
         processData p = pcb_to_processData(pcb);
+       
         int cpu = select_cpu();
-        if (cpu == 1)
+        
+        
+        if (cpu == 1){
             send_process_msg(msgq_sub1_id, &p, 1);
-        else
+            down(load_sem_id);
+            load_shm_addr[LOAD_SHM_SLOT_COUNT1]++;
+            up(load_sem_id);
+        }
+        else{
             send_process_msg(msgq_sub2_id, &p, 1);
+            down(load_sem_id);
+            load_shm_addr[LOAD_SHM_SLOT_COUNT2]++;
+            up(load_sem_id);
+        }
+        
         free(pcb);
     }
 
@@ -479,6 +510,25 @@ int create_2cpu_ipcs()
     (load_shm_addr)[LOAD_SHM_SLOT_COUNT2]   = 0;
     (load_shm_addr)[LOAD_SHM_SLOT_TOTALRT2] = 0;
 
+    key_t semKey = ftok(KEYFILE_PATH, LOAD_SEM_PROJ);
+
+    load_sem_id = semget(semKey, 1, 0666 | IPC_CREAT);
+    if (load_sem_id == -1)
+    {
+        perror("Error in create sem");
+        exit(-1);
+    }
+
+    union Semun semun;
+    semun.val = 1;
+    if (semctl(sem_id, 0, SETVAL, semun) == -1)
+    {
+        perror("Error in semctl");
+        exit(-1);
+    }
+
+
+
     return 0;
 }
 
@@ -503,10 +553,12 @@ void read_all_load_shm(int *load_shm_addr,
                        int *count1, int *totalRT1,
                        int *count2, int *totalRT2)
 {
+    down(load_sem_id);
     *count1   = load_shm_addr[LOAD_SHM_SLOT_COUNT1];
     *totalRT1 = load_shm_addr[LOAD_SHM_SLOT_TOTALRT1];
     *count2   = load_shm_addr[LOAD_SHM_SLOT_COUNT2];
     *totalRT2 = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
+    up(load_sem_id);
 }
 
 void destroy_2cpu_ipcs()

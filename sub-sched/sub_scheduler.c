@@ -1,5 +1,5 @@
-#include "../headers.h"
 #include "sub_scheduler.h"
+#include "../headers.h"
 #include <string.h>
 
 // function predefinitions
@@ -12,6 +12,7 @@ void steal_handler(int signum);
 
 // global vars
 
+int load_sem_id;
 int cpu_id;
 int sem_id;       // tick-gate semaphore (ftok 81 or 82)
 int shmRT_id;     // remaining-time shm  (ftok 83 or 84)
@@ -245,6 +246,8 @@ void update_load_shm(void)
     int base = (cpu_id == 1) ? 0 : 2;
     int count = readyQueue->size ;
     int totalRT = total_remaining_time(readyQueue) ;
+    down(load_sem_id);
     load_shm[base] = count;
     load_shm[base + 1] = totalRT;
+    up(load_sem_id);
 }
