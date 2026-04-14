@@ -17,6 +17,7 @@
 #define MSGQ_SUB2_PROJ 76
 #define MSGQ_RESPONSE_PROJ 77
 #define LOAD_SHM_PROJ 80
+#define LOAD_SEM_PROJ 81
 
 #define Tick_semaphore1 81
 #define Tick_semaphore2 82
@@ -29,9 +30,41 @@
 #define LOAD_SHM_SLOT_COUNT2 2
 #define LOAD_SHM_SLOT_TOTALRT2 3
 
-#define KEYFILE_PATH "../keyfile"
+#define KEYFILE_PATH "../keyFile"
 
 int getClk(void);
+
+void down(int sem)
+{
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = -1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    while (semop(sem, &op, 1) == -1)
+    {
+        if (errno == EINTR)
+            continue; // retry if interrupted by signal
+        perror("Error in down()");
+        exit(-1);
+    }
+}
+
+void up(int sem)
+{
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = 1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    if (semop(sem, &op, 1) == -1)
+    {
+        perror("Error in up()");
+        exit(-1);
+    }
+}
 
 struct PCB createPCB(processData p)
 {
@@ -179,23 +212,6 @@ void write_perf(struct PerfVars perf, FILE *perf_file)
     fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
 }
 
-void up(int sem)
-{
-    struct sembuf op;
-
-    op.sem_num = 0;
-    op.sem_op = 1;
-    op.sem_flg = !IPC_NOWAIT;
-
-    if (semop(sem, &op, 1) == -1)
-    {
-        if (errno == EIDRM || errno == EINVAL)
-            return;
-        perror("Error in up()");
-        exit(-1);
-    }
-}
-
 int send_process_msg(int msgq_id, processData *p, long mtype)
 {
     p->mtype = mtype;
@@ -241,6 +257,16 @@ int attach_2cpu_ipcs(int cpu_id)
         return -1;
     }
 
+    key_t semKey = ftok(KEYFILE_PATH, LOAD_SEM_PROJ);
+    load_sem_id = semget(semKey, 1, 0666 | IPC_CREAT| IPC_EXCL);
+    if (load_sem_id == -1)
+    {
+        perror("Error in retrieve sem");
+        exit(-1);
+    }
+
+    
+
     return 0;
 }
 
@@ -248,13 +274,17 @@ void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT)
 {
     if (cpu_id == 1)
     {
+        down(load_sem_id);
         load_shm_addr[LOAD_SHM_SLOT_COUNT1] = count;
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT1] = totalRT;
+        up(load_sem_id);
     }
     else
     {
+        down(load_sem_id);
         load_shm_addr[LOAD_SHM_SLOT_COUNT2] = count;
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT2] = totalRT;
+        up(load_sem_id);
     }
 }
 
@@ -307,7 +337,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
 
 void create_ipcs(int cpu_id)
 {
-    int semKey;
+    int semKey = ftok(KEYFILE_PATH, LOAD_SEM_PROJ);
     int shmKey;
 
     if (cpu_id == 1)
@@ -349,4 +379,6 @@ void create_ipcs(int cpu_id)
         perror("Error in semctl");
         exit(-1);
     }
+
+
 }

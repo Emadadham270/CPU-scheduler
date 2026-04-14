@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <stdio.h>
 
+extern int load_sem_id;
 extern int cpu_id;
 extern int sem_id;
 extern int shmRT_id;
@@ -26,6 +27,7 @@ void write_comment_line(FILE *log_file);
 void log_data(FILE *log_file, PCB *pcb);
 void write_perf(struct PerfVars perf, FILE *perf_file);
 void up(int sem);
+void down(int sem);
 
 int send_process_msg(int msgq_id, processData *p, long mtype);
 int attach_2cpu_ipcs(int cpu_id);

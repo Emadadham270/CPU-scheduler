@@ -5,8 +5,10 @@
 
 #include "../data structs/structs.h"
 #include "../data_structures/PCB/Sch_PCB.h"
+
 #include <stdio.h>
 
+extern int load_sem_id;
 extern int msgq_id;
 extern int sem_id;
 extern int shmRT_id,load_shm_id;
@@ -34,8 +36,8 @@ void create_log_files(FILE **log_file, FILE **perf_file);
 void write_comment_line(FILE *log_file);
 void log_data(FILE *log_file, PCB *pcb);
 void write_perf(struct PerfVars perf, FILE* perf_file);
-void up(int sem);
 void down(int sem);
+void up(int sem);
 
 int create_2cpu_ipcs();
 void destroy_2cpu_ipcs();

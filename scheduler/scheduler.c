@@ -1,6 +1,7 @@
 #include "scheduler.h"
 #include "../headers.h"
 
+int load_sem_id;
 int msgq_id;
 int sem_id;
 int receivingProcesses = 1;
