@@ -208,10 +208,12 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
 
         /* Check if the quantum has expired */
 
-        if (getClk() >= *next_preemtion_time)
+        if (getClk() >= *next_preemtion_time && !isEmpty(readyQueue))
         {
             /* Preempt: stop the current process and put it back in the queue */
             (*currProcess)->lState = STOP;
+            (*currProcess)->remaining_time = *shmRT_addr;
+
             log_data(log_file, *currProcess);
             (*currProcess)->last_stopped = getClk();
             kill((*currProcess)->pid, SIGSTOP);
