@@ -119,8 +119,12 @@ void create_log_files(FILE **log_file, FILE **perf_file, int which)
 
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
 {
+    printf("c %d at time %d---------innnnnn--------------\n",cpu_id,getClk());
+    if (*currProcess || isEmpty(readyQueue))
+        printf("c %d at time %d---it is intialized ?----------\n",cpu_id,getClk());
     if (*currProcess == NULL && !isEmpty(readyQueue))
     {
+        printf("c %d at time %d---------innnnnn22222222--------------\n",cpu_id,getClk());
         int size = readyQueue->size;
             printf("we got the point \n");
             printf("cpu %d , size %d\n", cpu_id, size);
@@ -133,6 +137,7 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
         write_load_shm(load_shm, cpu_id, size, totalRT);
         runProcess(*currProcess, log_file);
     }
+    
 }
 
 void write_comment_line(FILE *log_file)

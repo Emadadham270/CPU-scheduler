@@ -17,6 +17,7 @@ extern int *shmRT_addr;
 extern int my_msgq_id;
 extern int msgq_resp_id;
 extern int *load_shm;
+extern int pass;
 
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
