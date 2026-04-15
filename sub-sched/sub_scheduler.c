@@ -53,18 +53,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /*
-    1-it will take a the address from the msgq
-    2-push it to the ready queue
-    3- call the function (FCFS)
-
-    4-implement the signal handler for the stall signal, and make sure that the scheduler will not schedule any process during the stall time, and after the stall time is over, it will resume scheduling the processes in the ready queue.
-    5-implement the signal handler if the main scheduler needds the last element of us
-
-    6-signal handler to notify that the process has finished .
-
-
-    */
+  
     // We need to include which cpu is running in args to write to log1 | log2 / perf1 | perf2
 
 
@@ -88,10 +77,33 @@ int main(int argc, char *argv[])
     int base2nd = (cpu_id == 1) ? 2 : 0; //don't terminate untill all the processes are done
     while (!isEmpty(readyQueue) || receivingProcesses || currProcess||load_shm[base2nd+1])
     {
-        int now = getClk();
+        // Always drain the message queue immediately (not just once per tick)
+        processData pd;
+        while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+        {
+            if (pd.mtype == 5)
+            {
+                receivingProcesses = 0;
+                break;
+            }
+            if (pd.mtype == 1)
+            {
+                PCB *pcb = malloc(sizeof(PCB));
+                *pcb = createPCB(pd);
+                if (perf.first_arrival == -1)
+                    perf.first_arrival = pcb->arrival;
+                printf("iam cpu %d and i recieved proceess %d-----------------------\n",cpu_id,pcb->id);
+                enqueue(readyQueue, pcb);
+            }
+        }
 
+        int now = getClk();
         if (now == last_tick)
+        {
+            // Still update load_shm for monitoring
+            update_load_shm();
             continue;
+        }
         int base = (cpu_id == 1) ? 0 : 2;
         printf("I am cpu %d and i have %d at time %d\n", cpu_id, load_shm[base], now);
         last_tick = now;
@@ -134,29 +146,6 @@ int main(int argc, char *argv[])
         }
         else if (!processFinishedSignal)
         {
-            processData pd;
-            while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long),
-                          0, IPC_NOWAIT) != -1)
-            {
-                if (pd.mtype == 5)
-                {
-                    receivingProcesses = 0;
-                    break;
-                }
-
-                if (pd.mtype == 1)
-                {
-                    PCB *pcb = malloc(sizeof(PCB));
-                    *pcb = createPCB(pd);
-                    if (perf.first_arrival == -1)
-                        perf.first_arrival = pcb->arrival;
-                    printf("iam cpu %d and i recieved proceess %d-----------------------\n",cpu_id,pcb->id);
-                    enqueue(readyQueue, pcb);
-                    // int size = readyQueue->size;
-                    // write_load_shm(load_shm, cpu_id, size, total_remaining_time(readyQueue));
-                }
-            }
-
             if(!stalled)
                 FCFS_algo(readyQueue, &currProcess, log_file);
 
@@ -167,7 +156,6 @@ int main(int argc, char *argv[])
                 semctl(sem_id, 0, SETVAL, s);
                 up(sem_id);
             }
-
         }
         update_load_shm();
     }

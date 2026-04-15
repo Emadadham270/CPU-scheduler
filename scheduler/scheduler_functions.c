@@ -313,18 +313,22 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
     {
         PCB *pcb = dequeue(readyQueue);
         processData p = pcb_to_processData(pcb);
+        printf("waiting for cpu selection for process %d\n", pcb->id);
        
         int cpu = select_cpu();
+        printf("selection done %d\n", pcb->id);
         
         
         if (cpu == 1){
             send_process_msg(msgq_sub1_id, &p, 1);
+            printf("sent process %d to cpu 1\n", pcb->id);
             down(load_sem_id);
             load_shm_addr[LOAD_SHM_SLOT_COUNT1]++;
             up(load_sem_id);
         }
         else{
             send_process_msg(msgq_sub2_id, &p, 1);
+            printf("sent process %d to cpu 2\n", pcb->id);
             down(load_sem_id);
             load_shm_addr[LOAD_SHM_SLOT_COUNT2]++;
             up(load_sem_id);
