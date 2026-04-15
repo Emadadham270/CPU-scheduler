@@ -34,10 +34,13 @@ int processFinishedSignal = 0;
 int receivingProcesses = 1;
 struct PCB *currProcess = NULL;
 int dispatched_this_tick = 0;
+int pass = 0;
+
 
 // logs
 FILE *log_file;
 FILE *perf_file;
+struct PerfVars perf;
 
 int main(int argc, char *argv[])
 {
@@ -68,7 +71,7 @@ int main(int argc, char *argv[])
     }
 
     create_log_files(&log_file, &perf_file, cpu_id);
-    struct PerfVars perf = initialize_perf();
+    perf = initialize_perf();
 
     // Assume address msgq exists and get a dummy address for now
     initClk();
@@ -94,11 +97,14 @@ int main(int argc, char *argv[])
                     perf.first_arrival = pcb->arrival;
                 printf("iam cpu %d and i recieved proceess %d-----------------------\n",cpu_id,pcb->id);
                 enqueue(readyQueue, pcb);
+                if(!processFinishedSignal&&!stalled)
+                    FCFS_algo(readyQueue, &currProcess, log_file);
+                
             }
         }
 
         int now = getClk();
-        if (now == last_tick)
+        if (now == last_tick )
         {
             // Still update load_shm for monitoring
             update_load_shm();
@@ -115,39 +121,15 @@ int main(int argc, char *argv[])
 
         if (currProcess && processFinishedSignal)
         {
-            processFinishedSignal = 0;
-            int status;
-            while (waitpid(currProcess->pid, &status, 0) == -1)
-                if (errno != EINTR)
-                {
-                    perror("waitpid");
-                    break;
-                }
-
-            currProcess->finish_time = now;
-            currProcess->remaining_time = 0;
-            currProcess->state = 'F';
-            currProcess->lState = FINISH;
-            log_data(log_file, currProcess);
-
-            float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
-            perf.avg_WTA += WTA;
-            perf.num_procs++;
-            float delta = WTA - perf.welford_mean_WTA;
-            perf.welford_mean_WTA += delta / perf.num_procs;
-            float delta2 = WTA - perf.welford_mean_WTA;
-            perf.M2_WTA += delta * delta2;
-            perf.avg_Waiting += currProcess->waiting_time;
-            perf.total_runtime += currProcess->runtime;
-            perf.finish_time = currProcess->finish_time;
-
-            free(currProcess);
-            currProcess = NULL;
+           
         }
         else if (!processFinishedSignal)
         {
+            printf("cpu %d is scheduling at time %d----------%d-------------\n", cpu_id, now,stalled);
             if(!stalled)
                 FCFS_algo(readyQueue, &currProcess, log_file);
+            
+            
 
             if (currProcess && !stalled)
             {
@@ -215,7 +197,35 @@ void steal_handler(int signum)
 void onProcessFinished(int signum)
 {
     (void)signum;
-    processFinishedSignal = 1;
+    // processFinishedSignal = 1;
+    processFinishedSignal = 0;
+            int status;
+            while (waitpid(currProcess->pid, &status, 0) == -1)
+                if (errno != EINTR)
+                {
+                    perror("waitpid");
+                    break;
+                }
+
+            currProcess->finish_time = getClk();
+            currProcess->remaining_time = 0;
+            currProcess->state = 'F';
+            currProcess->lState = FINISH;
+            log_data(log_file, currProcess);
+
+            float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
+            perf.avg_WTA += WTA;
+            perf.num_procs++;
+            float delta = WTA - perf.welford_mean_WTA;
+            perf.welford_mean_WTA += delta / perf.num_procs;
+            float delta2 = WTA - perf.welford_mean_WTA;
+            perf.M2_WTA += delta * delta2;
+            perf.avg_Waiting += currProcess->waiting_time;
+            perf.total_runtime += currProcess->runtime;
+            perf.finish_time = currProcess->finish_time;
+
+            free(currProcess);
+            currProcess = NULL;
 }
 
 static processData pcb_to_processData(PCB *pcb, long mtype)
