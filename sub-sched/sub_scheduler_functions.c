@@ -121,15 +121,15 @@ void create_log_files(FILE **log_file, FILE **perf_file, int which)
 
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
 {
-    printf("c %d at time %d---------innnnnn--------------\n",cpu_id,getClk());
+    // printf("c %d at time %d---------innnnnn--------------\n",cpu_id,getClk());
     if (*currProcess || isEmpty(readyQueue))
-        printf("c %d at time %d---it is intialized ?----------\n",cpu_id,getClk());
+        // printf("c %d at time %d---it is intialized ?----------\n",cpu_id,getClk());
     if (*currProcess == NULL && !isEmpty(readyQueue))
     {
-        printf("c %d at time %d---------innnnnn22222222--------------\n",cpu_id,getClk());
+        // printf("c %d at time %d---------innnnnn22222222--------------\n",cpu_id,getClk());
         int size = readyQueue->size;
-            printf("we got the point \n");
-            printf("cpu %d , size %d\n", cpu_id, size);
+        printf("we got the point \n");
+        printf("cpu %d , size %d\n", cpu_id, size);
         *currProcess = dequeue(readyQueue);
         int totalRT = total_remaining_time(readyQueue);
         size = readyQueue->size;
@@ -279,20 +279,20 @@ int attach_2cpu_ipcs(int cpu_id)
 
 void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT)
 {
+    printf("\tSUB %d: write_load_shm DOWN\n", cpu_id);
+    down(load_sem_id);
     if (cpu_id == 1)
     {
-        down(load_sem_id);
         load_shm_addr[LOAD_SHM_SLOT_COUNT1] = count;
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT1] = totalRT;
-        up(load_sem_id);
     }
     else
     {
-        down(load_sem_id);
         load_shm_addr[LOAD_SHM_SLOT_COUNT2] = count;
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT2] = totalRT;
-        up(load_sem_id);
     }
+    up(load_sem_id);
+    printf("\tSUB %d: write_load_shm UP\n", cpu_id);
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)
