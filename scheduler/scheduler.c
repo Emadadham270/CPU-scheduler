@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
   key_t key_id;
   signal(SIGINT, cleanup);
   signal(SIGUSR1, onProcessFinished);
-  key_id = ftok("../keyfile", 65);
+  key_id = ftok("../keyFile", 65);
   msgq_id = msgget(key_id, 0666);
   perf = initialize_perf();
 
@@ -92,7 +92,8 @@ int main(int argc, char *argv[])
   initClk();
   int last_tick = -1;
   int s=0;
-  while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
+  int wait_sub=0;
+  while (!isEmpty(readyQueue) || receivingProcesses || currProcess||wait_sub)
   {
 
     int now = getClk();
@@ -197,6 +198,12 @@ int main(int argc, char *argv[])
         semctl(sem_id, 0, SETVAL, s);
         up(sem_id);
       }
+    }
+    if(subCpu_created)
+    {
+      int c1,c2,rt1,rt2;
+      read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
+      wait_sub=rt1+rt2;
     }
   }
   // Wait for sub-schedulers to finish before cleanup
