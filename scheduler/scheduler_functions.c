@@ -208,7 +208,13 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
 
         /* Check if the quantum has expired */
 
-        if (getClk() >= *next_preemtion_time && !isEmpty(readyQueue))
+        if(isEmpty(readyQueue))
+        {
+            *next_preemtion_time = getClk() + q;
+            return;
+        }
+
+        if (getClk() >= *next_preemtion_time )
         {
             /* Preempt: stop the current process and put it back in the queue */
             (*currProcess)->lState = STOP;
@@ -677,4 +683,39 @@ void check_threshold(int M)
         read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
         diff = abs(rt1 - rt2);
     }
+}
+
+int receiveProcesses(Queue *readyQueue,processData process,int type)
+{
+    if (msgrcv(msgq_id, &process, sizeof(processData) - sizeof(long), 0,
+                    IPC_NOWAIT) != -1)
+      {
+
+        if (process.mtype == 5)
+        {
+          if (subCpu_created)
+          {
+            send_process_msg(msgq_sub1_id, &process, 5);
+            send_process_msg(msgq_sub2_id, &process, 5);
+          }
+          receivingProcesses = 0;
+          return -1;
+        }
+
+        struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
+        *pcb = createPCB(process);
+
+
+        // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
+        if(perf.first_arrival == -1) {
+          perf.first_arrival = pcb->arrival;
+        }
+        // printf("recieved process %d\n", pcb->id);
+        if (type == 2) // HPF
+          enqueue_priority(readyQueue, pcb);
+        else
+          enqueue(readyQueue, pcb);
+          return 0;
+      }
+      else return -1;
 }
