@@ -19,7 +19,7 @@ extern int subCpu_created;
 extern int receivingProcesses;
 extern int idArr[2];
 extern int N_time;
-
+extern perfVars perf;
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
@@ -28,7 +28,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
              int *next_preemtion_time, FILE *log_file);
 void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file);
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *log_file);
-void handle_context_switch();
+void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE *log_file);
 void wait_N_secs(int N);
 void cleanup(int signum);
 
@@ -45,4 +45,5 @@ void detach_2cpu_ipcs();
 int select_cpu();
 int send_process_msg(int msgq_id, processData *p, long mtype);
 processData pcb_to_processData(PCB *pcb);
+int receiveProcesses(Queue *readyQueue,processData p,int type);
 #endif // SCHEDULER_H

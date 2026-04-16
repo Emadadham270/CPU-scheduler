@@ -17,6 +17,7 @@ int shmRT_id,load_shm_id;
 int subCpu_created=0;
 int idArr[2];
 int N_time=0;
+perfVars perf;
 void onProcessFinished(int signum)
 {
   (void)signum;
@@ -31,7 +32,7 @@ int main(int argc, char *argv[])
   signal(SIGUSR1, onProcessFinished);
   key_id = ftok("../keyfile", 65);
   msgq_id = msgget(key_id, 0666);
-  perfVars perf = initialize_perf();
+  perf = initialize_perf();
 
   shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
   if ((long)shmRT_id == -1)
@@ -90,7 +91,7 @@ int main(int argc, char *argv[])
 
   initClk();
   int last_tick = -1;
-
+  int s=0;
   while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
   {
 
@@ -100,7 +101,6 @@ int main(int argc, char *argv[])
     printf("===========================we are at time step %d ==========================\n", now);
     // Delay 5ms to allow running process to detect the clock change and print
     // its remaining time before we potentially preempt it.
-    // usleep(5000);
 
     last_tick = now;
 
@@ -150,43 +150,26 @@ int main(int argc, char *argv[])
     }
     else if (!processFinishedSignal)
     {
-      // 2. Receive new arrivals
-      while (msgrcv(msgq_id, &process, sizeof(processData) - sizeof(long), 0,
-                    IPC_NOWAIT) != -1)
-      {
-        if (process.mtype == 5)
+
+      if (now > 0 && type==1)
         {
-          if (subCpu_created)
-          {
-            send_process_msg(msgq_sub1_id, &process, 5);
-            send_process_msg(msgq_sub2_id, &process, 5);
-          }
-          receivingProcesses = 0;
-          break;
+          if(!s)
+            if (!receiveProcesses(readyQueue,process,type))
+              s=1;
+          RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
+
         }
 
-        struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
-        *pcb = createPCB(process);
-
-
-        // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
-        if(perf.first_arrival == -1) {
-          perf.first_arrival = pcb->arrival;
-        }
-        // printf("recieved process %d\n", pcb->id);
-        if (type == 2) // HPF
-          enqueue_priority(readyQueue, pcb);
-        else
-          enqueue(readyQueue, pcb);
-              }
+      // 2. Receive new arrivals
+      while (!receiveProcesses(readyQueue,process,type));
 
       // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
-      if (now > 0)
+      if (now > 0 )
         switch (type)
         {
-        case 1:
-          RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
-          break;
+        // case 1:
+        //   RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
+        //   break;
         case 2:
           HPF_algo(readyQueue, &currProcess, log_file);
           break;
