@@ -40,7 +40,7 @@
 
 void destroyClk(bool terminateAll);
 int getClk(void);
-void check_threshold(int M);
+void check_threshold(int M,int N);
 
 void down(int sem)
 {
@@ -230,7 +230,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             printf("process %d stopped \n", (*currProcess)->pid);
             enqueue(readyQueue, (*currProcess));
 
-            wait_N_secs(1);
+            wait_N_secs(1, 1);
 
             /* Pick the next process from the queue */
             *currProcess = dequeue(readyQueue);
@@ -270,7 +270,7 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
             printf("process %d stopped \n", (*currProcess)->pid);
             //  here supposed to call context switch ? ?
             (*currProcess) = NULL;
-            wait_N_secs(1);
+            wait_N_secs(1,1);
             //runProcess(*currProcess, log_file);
         }
     }else if ((*currProcess) == NULL && !isEmpty(readyQueue))
@@ -325,21 +325,22 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
         int cpu = select_cpu();
         printf("selection done %d\n", pcb->id);
         
-        
+        printf("\tMAIN: FCFS DOWN\n");
+        down(load_sem_id);
         if (cpu == 1){
-            send_process_msg(msgq_sub1_id, &p, 1);
+            send_process_msg(msgq_sub1_id, &p, MTYPE_NEW_PROCESS);
             printf("sent process %d to cpu 1\n", pcb->id);
-            down(load_sem_id);
             load_shm_addr[LOAD_SHM_SLOT_COUNT1]++;
-            up(load_sem_id);
         }
         else{
-            send_process_msg(msgq_sub2_id, &p, 1);
+            send_process_msg(msgq_sub2_id, &p, MTYPE_NEW_PROCESS);
             printf("sent process %d to cpu 2\n", pcb->id);
-            down(load_sem_id);
+            // down(load_sem_id);
             load_shm_addr[LOAD_SHM_SLOT_COUNT2]++;
-            up(load_sem_id);
+            // up(load_sem_id);
         }
+        up(load_sem_id);
+        printf("\tMAIN: FCFS UP\n");
         
         free(pcb);
     }
@@ -351,7 +352,8 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
         if (N_time >= N)
         {
             N_time = 0;
-            check_threshold(M);
+             
+            check_threshold(M, N);
         }
     }
 }
@@ -364,15 +366,20 @@ void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE 
         oldProcess->state = 'W';
         // Log "stopped"
     }
-    wait_N_secs(1);
+    wait_N_secs(1, 1);
     runProcess(newProcess, log_file);
 }
 
-void wait_N_secs(int N)
+void wait_N_secs(int pen,int N)
 {
-    int curr = getClk() + N;
+    int curr = getClk() + pen;
+    N_time = (N_time + pen) % N;
     while (curr > getClk())
-        ;
+    {
+        
+
+        
+    }
 }
 
 void create_log_files(FILE **log_file, FILE **perf_file)
@@ -550,12 +557,14 @@ void read_all_load_shm(int *load_shm_addr,
                        int *count1, int *totalRT1,
                        int *count2, int *totalRT2)
 {
+    printf("\tMAIN: read_all_load_shm DOWN\n");
     down(load_sem_id);
     *count1   = load_shm_addr[LOAD_SHM_SLOT_COUNT1];
     *totalRT1 = load_shm_addr[LOAD_SHM_SLOT_TOTALRT1];
     *count2   = load_shm_addr[LOAD_SHM_SLOT_COUNT2];
     *totalRT2 = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
     up(load_sem_id);
+    printf("\tMAIN: read_all_load_shm UP\n");
 }
 
 void destroy_2cpu_ipcs()
@@ -589,6 +598,7 @@ void detach_2cpu_ipcs()
 int select_cpu()
 {
     int c1,c2,rt1,rt2;
+    printf("\tMAIN: select_cpu\n");
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
     if (c1<=c2)
         return 1;
@@ -620,14 +630,15 @@ processData pcb_to_processData(PCB *pcb)
     return p;
 }
 
-void check_threshold(int M)
+void check_threshold(int M,int N)
 {
     int c1, c2, rt1, rt2;
+    printf("\tMAIN: check_threshold\n");
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
-
     int diff = abs(rt1 - rt2);
     while (diff > M)
     {
+        printf("==> diff: %d\n", diff);
         int busier_idx, lighter_msgq;
         if (rt1 > rt2)
         {
@@ -656,14 +667,15 @@ void check_threshold(int M)
             break;
 
         /* 4. Send stolen process to the lighter CPU */
-        send_process_msg(lighter_msgq, &resp, 1);
+        send_process_msg(lighter_msgq, &resp, MTYPE_NEW_PROCESS);
 
         /* 5. Stall both CPUs for 3-second overhead */
         kill(idArr[0], SIGUSR2);
         kill(idArr[1], SIGUSR2);
-        wait_N_secs(3);
+        wait_N_secs(3, N);
 
         /* 6. Re-read and check again */
+        printf("\tMAIN: check_threshold 2\n");
         read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
         diff = abs(rt1 - rt2);
     }
@@ -679,8 +691,8 @@ int receiveProcesses(Queue *readyQueue,processData process,int type)
         {
           if (subCpu_created)
           {
-            send_process_msg(msgq_sub1_id, &process, 5);
-            send_process_msg(msgq_sub2_id, &process, 5);
+            send_process_msg(msgq_sub1_id, &process, MTYPE_TERMINATE);
+            send_process_msg(msgq_sub2_id, &process, MTYPE_TERMINATE);
           }
           receivingProcesses = 0;
           return -1;
@@ -696,9 +708,13 @@ int receiveProcesses(Queue *readyQueue,processData process,int type)
         }
         // printf("recieved process %d\n", pcb->id);
         if (type == 2) // HPF
-          enqueue_priority(readyQueue, pcb);
+        {
+            enqueue_priority(readyQueue, pcb);
+        }
         else
-          enqueue(readyQueue, pcb);
+        {
+            enqueue(readyQueue, pcb);
+        }
           return 0;
       }
       else return -1;
