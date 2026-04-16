@@ -11,10 +11,10 @@
 extern int load_sem_id;
 extern int msgq_id;
 extern int sem_id;
-extern int shmRT_id,load_shm_id;
+extern int shmRT_id, load_shm_id;
 extern int *shmRT_addr;
 extern int *load_shm_addr;
-extern int msgq_sub1_id, msgq_sub2_id,msgq_resp_id;
+extern int msgq_sub1_id, msgq_sub2_id, msgq_resp_id;
 extern int subCpu_created;
 extern int receivingProcesses;
 extern int idArr[2];
@@ -29,13 +29,13 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
 void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file);
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *log_file);
 void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE *log_file);
-void wait_N_secs(int N);
+void wait_N_secs(int pen, int N);
 void cleanup(int signum);
 
 void create_log_files(FILE **log_file, FILE **perf_file);
 void write_comment_line(FILE *log_file);
 void log_data(FILE *log_file, PCB *pcb);
-void write_perf(struct PerfVars perf, FILE* perf_file);
+void write_perf(struct PerfVars perf, FILE *perf_file);
 void down(int sem);
 void up(int sem);
 
@@ -45,5 +45,5 @@ void detach_2cpu_ipcs();
 int select_cpu();
 int send_process_msg(int msgq_id, processData *p, long mtype);
 processData pcb_to_processData(PCB *pcb);
-int receiveProcesses(Queue *readyQueue,processData p,int type);
+int receiveProcesses(Queue *readyQueue, processData p, int type);
 #endif // SCHEDULER_H

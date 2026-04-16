@@ -9,7 +9,6 @@ void update_load_shm(void);
 static processData pcb_to_processData(PCB *pcb, long mtype);
 void steal_handler(int signum);
 
-
 // global vars
 
 int load_sem_id;
@@ -17,12 +16,12 @@ int cpu_id;
 int sem_id;       // tick-gate semaphore (ftok 81 or 82)
 int shmRT_id;     // remaining-time shm  (ftok 83 or 84)
 int *shmRT_addr;  // mapped address
-int my_msgq_id;  // main → this sub (ftok 75 or 76)
+int my_msgq_id;   // main → this sub (ftok 75 or 76)
 int msgq_resp_id; // this sub → main (ftok 77)
 int *load_shm;    // [count1,totalRT1,count2,totalRT2] (ftok 80)
 
-int sem_proj; //sem key sent by the main 1-81 , 2-82
-int shmRT_proj; //shm key for remaining time sent by main 1-83 , 2-84
+int sem_proj;   // sem key sent by the main 1-81 , 2-82
+int shmRT_proj; // shm key for remaining time sent by main 1-83 , 2-84
 
 // stall
 int stalled = 0;
@@ -35,7 +34,6 @@ int receivingProcesses = 1;
 struct PCB *currProcess = NULL;
 int dispatched_this_tick = 0;
 int pass = 0;
-
 
 // logs
 FILE *log_file;
@@ -56,9 +54,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-  
     // We need to include which cpu is running in args to write to log1 | log2 / perf1 | perf2
-
 
     to_int(argv[1], &cpu_id);
 
@@ -77,8 +73,14 @@ int main(int argc, char *argv[])
     initClk();
 
     int last_tick = -1;
-    int base2nd = (cpu_id == 1) ? 2 : 0; //don't terminate untill all the processes are done
-    while (!isEmpty(readyQueue) || receivingProcesses || currProcess||load_shm[base2nd+1])
+    int base2nd = (cpu_id == 1) ? 2 : 0; // don't terminate untill all the processes are done
+    // while (!isEmpty(readyQueue) || receivingProcesses || currProcess||load_shm[base2nd+1])
+    printf("\tSUB %d remaining_processes init DOWN\n", cpu_id);
+    down(load_sem_id);
+    int remaining_processes = load_shm[base2nd + 1];
+    up(load_sem_id);
+    printf("\tSUB %d remaining_processes init UP\n", cpu_id);
+    while (!isEmpty(readyQueue) || receivingProcesses || currProcess || remaining_processes)
     {
         // Always drain the message queue immediately (not just once per tick)
         processData pd;
@@ -95,23 +97,26 @@ int main(int argc, char *argv[])
                 *pcb = createPCB(pd);
                 if (perf.first_arrival == -1)
                     perf.first_arrival = pcb->arrival;
-                printf("iam cpu %d and i recieved proceess %d-----------------------\n",cpu_id,pcb->id);
+                printf("iam cpu %d and i recieved proceess %d-----------------------\n", cpu_id, pcb->id);
                 enqueue(readyQueue, pcb);
-                if(!processFinishedSignal&&!stalled)
+                if (!processFinishedSignal && !stalled)
                     FCFS_algo(readyQueue, &currProcess, log_file);
-                
             }
         }
 
         int now = getClk();
-        if (now == last_tick )
+        if (now == last_tick)
         {
             // Still update load_shm for monitoring
             update_load_shm();
             continue;
         }
-        int base = (cpu_id == 1) ? 0 : 2;
-        printf("I am cpu %d and i have %d at time %d\n", cpu_id, load_shm[base], now);
+        // int base = (cpu_id == 1) ? 0 : 2;
+
+        // down(load_sem_id);
+        // printf("==> I am cpu %d and i have %d at time %d\n", cpu_id, load_shm[base], now);
+        // up(load_sem_id);
+
         last_tick = now;
 
         if (stalled && now >= stall_end_time)
@@ -121,15 +126,12 @@ int main(int argc, char *argv[])
 
         if (currProcess && processFinishedSignal)
         {
-           
         }
         else if (!processFinishedSignal)
         {
-            printf("cpu %d is scheduling at time %d----------%d-------------\n", cpu_id, now,stalled);
-            if(!stalled)
+            // printf("cpu %d is scheduling at time %d----------%d-------------\n", cpu_id, now,stalled);
+            if (!stalled)
                 FCFS_algo(readyQueue, &currProcess, log_file);
-            
-            
 
             if (currProcess && !stalled)
             {
@@ -140,8 +142,13 @@ int main(int argc, char *argv[])
             }
         }
         update_load_shm();
+        printf("\tSUB %d remaining_processes loop DOWN\n", cpu_id);
+        down(load_sem_id);
+        remaining_processes = load_shm[base2nd + 1];
+        up(load_sem_id);
+        printf("\tSUB %d remaining_processes loop UP\n", cpu_id);
     }
-    printf("sub %d finished--------------------------\n", cpu_id);
+    // printf("sub %d finished--------------------------\n", cpu_id);
     update_load_shm();
 
     write_perf(perf, perf_file);
@@ -171,7 +178,7 @@ void steal_handler(int signum)
     (void)signum;
 
     // this sends the rear of the ready queue to the main scheduler.
-    //send the rear through the msgq_resp_id
+    // send the rear through the msgq_resp_id
     PCB *stolen = dequeue_rear(readyQueue);
     processData resp;
     if (stolen)
@@ -190,42 +197,40 @@ void steal_handler(int signum)
     if (msgsnd(msgq_resp_id, &resp,
                sizeof(processData) - sizeof(long), 0) == -1)
         perror("msgsnd steal resp");
-
 }
-
 
 void onProcessFinished(int signum)
 {
     (void)signum;
     // processFinishedSignal = 1;
     processFinishedSignal = 0;
-            int status;
-            while (waitpid(currProcess->pid, &status, 0) == -1)
-                if (errno != EINTR)
-                {
-                    perror("waitpid");
-                    break;
-                }
+    int status;
+    while (waitpid(currProcess->pid, &status, 0) == -1)
+        if (errno != EINTR)
+        {
+            perror("waitpid");
+            break;
+        }
 
-            currProcess->finish_time = getClk();
-            currProcess->remaining_time = 0;
-            currProcess->state = 'F';
-            currProcess->lState = FINISH;
-            log_data(log_file, currProcess);
+    currProcess->finish_time = getClk();
+    currProcess->remaining_time = 0;
+    currProcess->state = 'F';
+    currProcess->lState = FINISH;
+    log_data(log_file, currProcess);
 
-            float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
-            perf.avg_WTA += WTA;
-            perf.num_procs++;
-            float delta = WTA - perf.welford_mean_WTA;
-            perf.welford_mean_WTA += delta / perf.num_procs;
-            float delta2 = WTA - perf.welford_mean_WTA;
-            perf.M2_WTA += delta * delta2;
-            perf.avg_Waiting += currProcess->waiting_time;
-            perf.total_runtime += currProcess->runtime;
-            perf.finish_time = currProcess->finish_time;
+    float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
+    perf.avg_WTA += WTA;
+    perf.num_procs++;
+    float delta = WTA - perf.welford_mean_WTA;
+    perf.welford_mean_WTA += delta / perf.num_procs;
+    float delta2 = WTA - perf.welford_mean_WTA;
+    perf.M2_WTA += delta * delta2;
+    perf.avg_Waiting += currProcess->waiting_time;
+    perf.total_runtime += currProcess->runtime;
+    perf.finish_time = currProcess->finish_time;
 
-            free(currProcess);
-            currProcess = NULL;
+    free(currProcess);
+    currProcess = NULL;
 }
 
 static processData pcb_to_processData(PCB *pcb, long mtype)
@@ -243,8 +248,8 @@ void update_load_shm(void)
 {
     /* slots: cpu 1 → indices 0,1 ; cpu 2 → indices 2,3 */
     int base = (cpu_id == 1) ? 0 : 2;
-    int count = readyQueue->size ;
-    int totalRT = total_remaining_time(readyQueue) ;
+    int count = readyQueue->size;
+    int totalRT = total_remaining_time(readyQueue);
     down(load_sem_id);
     load_shm[base] = count;
     load_shm[base + 1] = totalRT;
