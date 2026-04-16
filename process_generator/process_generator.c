@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     signal(SIGINT, clearResources);
     key_t key_id;
 
-    key_id = ftok("../keyfile", 65);
+    key_id = ftok("../keyFile", 65);
 
     int old_msgq_id = msgget(key_id, 0666);
     if (old_msgq_id != -1)
