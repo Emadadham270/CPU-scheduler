@@ -269,12 +269,11 @@ void HPF_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
             enqueue_priority(readyQueue, (*currProcess));
             printf("process %d stopped \n", (*currProcess)->pid);
             //  here supposed to call context switch ? ?
-            wait_N_secs(1, 1);
-            (*currProcess) = dequeue(readyQueue);
-            runProcess(*currProcess, log_file);
+            (*currProcess) = NULL;
+            wait_N_secs(1,1);
+            //runProcess(*currProcess, log_file);
         }
-    }
-    if ((*currProcess) == NULL && !isEmpty(readyQueue))
+    }else if ((*currProcess) == NULL && !isEmpty(readyQueue))
     {
 
         *currProcess = dequeue(readyQueue);
@@ -551,21 +550,6 @@ int create_2cpu_ipcs()
 
     return 0;
 }
-
-// void read_load_shm(int *load_shm_addr, int cpu_id, int *count, int *totalRT)
-// {
-//     if (cpu_id == 1)
-//     {
-//         *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT1];
-//         *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT1];
-//     }
-//     else
-//     {
-//         *count   = load_shm_addr[LOAD_SHM_SLOT_COUNT2];
-//         *totalRT = load_shm_addr[LOAD_SHM_SLOT_TOTALRT2];
-//     }
-// }
-
 /*
  * Read BOTH CPUs' load info at once (used by main scheduler for comparison).
  */

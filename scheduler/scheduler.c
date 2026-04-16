@@ -153,6 +153,7 @@ int main(int argc, char *argv[])
 
       if (now > 0 && type==1)
         {
+          //receive the first process before the algo logic then receive after the logic
           if(!s)
             if (!receiveProcesses(readyQueue,process,type))
               s=1;
