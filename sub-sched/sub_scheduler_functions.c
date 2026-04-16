@@ -114,6 +114,8 @@ void create_log_files(FILE **log_file, FILE **perf_file, int which)
     *log_file = fopen(log_path, "w");
     *perf_file = fopen(perf_path, "w");
 
+    setvbuf(*log_file, NULL, _IONBF, 0);
+
     write_comment_line(*log_file);
 }
 

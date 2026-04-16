@@ -377,6 +377,8 @@ void create_log_files(FILE **log_file, FILE **perf_file)
     *log_file = fopen("../logs/scheduler.log", "w");
     *perf_file = fopen("../logs/scheduler.perf", "w");
 
+    setvbuf(*log_file, NULL, _IONBF, 0);
+
     return;
 }
 
