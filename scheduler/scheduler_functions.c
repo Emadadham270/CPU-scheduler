@@ -40,7 +40,7 @@
 
 void destroyClk(bool terminateAll);
 int getClk(void);
-void check_threshold(int M);
+void check_threshold(int M,int N);
 
 void down(int sem)
 {
@@ -352,7 +352,8 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
         if (N_time >= N)
         {
             N_time = 0;
-            check_threshold(M);
+             
+            check_threshold(M, N);
         }
     }
 }
@@ -369,11 +370,16 @@ void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE 
     runProcess(newProcess, log_file);
 }
 
-void wait_N_secs(int N)
+void wait_N_secs(int pen,int N =1)
 {
-    int curr = getClk() + N;
+    int curr = getClk() + pen;
+    N_time = (N_time + pen) % N;
     while (curr > getClk())
-        ;
+    {
+        
+
+        
+    }
 }
 
 void create_log_files(FILE **log_file, FILE **perf_file)
@@ -636,11 +642,10 @@ processData pcb_to_processData(PCB *pcb)
     return p;
 }
 
-void check_threshold(int M)
+void check_threshold(int M,int N)
 {
     int c1, c2, rt1, rt2;
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
-
     int diff = abs(rt1 - rt2);
     while (diff > M)
     {
