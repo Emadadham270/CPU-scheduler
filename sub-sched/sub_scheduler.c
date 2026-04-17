@@ -43,6 +43,8 @@ int context_switch_until = -1;
 int dispatched_this_tick = 0;
 int pass = 0;
 
+int processFinished=0;
+
 // logs
 FILE *log_file;
 FILE *perf_file;
@@ -121,6 +123,8 @@ int main(int argc, char *argv[])
             continue;
         }
 
+        if(processFinished)
+        finishLogic();
         /* Threshold gate: consume one permit for this tick.
          * Main posts permits only after finishing threshold decision. */
         down(threshold_sem_id);
@@ -147,7 +151,7 @@ int main(int argc, char *argv[])
     //          cpu_id, now, currProcess ? currProcess->id : -1, readyQueue->size, receivingProcesses, stalled);
 
         if (!currProcess && !isEmpty(readyQueue) && !stalled &&
-            (context_switch_until == -1 || now >= context_switch_until))
+            (context_switch_until == -1 || now >= context_switch_until) && now > 0)
         {
             // Dispatch next process when CPU becomes idle.
             FCFS_algo(readyQueue, &currProcess, log_file);
@@ -273,10 +277,8 @@ void steal_handler(int signum)
         perror("msgsnd steal resp");
 }
 
-void onProcessFinished(int signum)
+void finishLogic()
 {
-    (void)signum;
-    // printf("cpu %d received process finished signal at time %d\n", cpu_id, getClk() + 1);
     int status;
     while (waitpid(currProcess->pid, &status, 0) == -1)
         if (errno != EINTR)
@@ -286,7 +288,7 @@ void onProcessFinished(int signum)
         }
 
     // Remaining time reaches zero during this tick; completion is at end of tick.
-    currProcess->finish_time = current_tick_time + 1;
+    currProcess->finish_time = current_tick_time ;
     currProcess->remaining_time = 0;
     currProcess->state = 'F';
     currProcess->lState = FINISH;
@@ -306,6 +308,14 @@ void onProcessFinished(int signum)
 
     free(currProcess);
     currProcess = NULL;
+    processFinished=0;
+}
+
+void onProcessFinished(int signum)
+{
+    (void)signum;
+    // printf("cpu %d received process finished signal at time %d\n", cpu_id, getClk() + 1);
+    processFinished=1;
 }
 
 static processData pcb_to_processData(PCB *pcb, long mtype)
