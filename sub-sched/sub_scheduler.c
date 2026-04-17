@@ -208,6 +208,7 @@ void stall_sig(int signum)
         currProcess->last_stopped = current_tick_time;
         kill(currProcess->pid, SIGSTOP);
         currProcess->state = 'W';
+        currProcess->remaining_time=*shmRT_addr;
         currProcess->lState = STOP;
         log_data(log_file, currProcess);
     }
