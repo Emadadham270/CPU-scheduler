@@ -159,7 +159,7 @@ void log_data(FILE *log_file, PCB *pcb)
 {
     char stateStr[100];
     int finishFlag = 0;
-    int log_time = getClk();
+    int log_time = current_tick_time;
 
     // Special case for 2 CPU's
     if(pcb->lState == STOLEN) {
@@ -318,7 +318,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
     *shmRT_addr = pcb->remaining_time;
     if (pcb->start_time == -1)
     {
-        pcb->start_time = getClk();
+        pcb->start_time = current_tick_time;
         pcb->waiting_time = pcb->start_time - pcb->arrival;
     }
 

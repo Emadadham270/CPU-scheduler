@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
   int last_tick = -1;
   int s=0;
   int wait_sub=0;
+  int term_sent_to_subs = 0;
 
   if (type == 3)
   {
@@ -121,12 +122,21 @@ int main(int argc, char *argv[])
       }
   }
 
-  while (!isEmpty(readyQueue) || receivingProcesses || currProcess||wait_sub)
+  int subs_terminated = 0;
+  while (!isEmpty(readyQueue) || receivingProcesses || currProcess || wait_sub || (type == 3 && subs_terminated < 2))
   {
+    if (type == 3)
+    {
+        processData ack;
+        while (msgrcv(msgq_resp_id, &ack, sizeof(processData) - sizeof(long), 6, IPC_NOWAIT) != -1)
+        {
+            subs_terminated++;
+        }
+    }
 
     int now = getClk();
     if (now == last_tick)
-      continue; // spin until next tick
+        continue; // spin until next tick
     printf("===========================we are at time step %d ==========================\n", now);
     // Delay 5ms to allow running process to detect the clock change and print
     // its remaining time before we potentially preempt it.
@@ -239,6 +249,15 @@ int main(int argc, char *argv[])
       int c1,c2,rt1,rt2;
       read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
       wait_sub=rt1+rt2;
+      
+      if (receivingProcesses == 0 && !term_sent_to_subs)
+      {
+          processData term_msg = {0};
+          term_msg.mtype = 5;
+          send_process_msg(msgq_sub1_id, &term_msg, 5); // 5 is MTYPE_TERMINATE
+          send_process_msg(msgq_sub2_id, &term_msg, 5);
+          term_sent_to_subs = 1;
+      }
     }
   }
   // Wait for sub-schedulers to finish before cleanup

@@ -657,12 +657,12 @@ void check_threshold(int M,int N)
 
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
     int diff = abs(rt1 - rt2);
-    printf("\t diff (pre-refresh)=============> %d\n", diff);
+    printf("\tMAIN: diff (pre-refresh) -> c1=%d, rt1=%d | c2=%d, rt2=%d | diff=%d\n", c1, rt1, c2, rt2, diff);
 
     /* No snapshot signal: use a second synchronous read as post-refresh view. */
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
     diff = abs(rt1 - rt2);
-    printf("\t diff (post-refresh)=============> %d\n", diff);
+    printf("\tMAIN: diff (post-refresh) -> c1=%d, rt1=%d | c2=%d, rt2=%d | diff=%d\n", c1, rt1, c2, rt2, diff);
 
     while (diff > M)
     {
@@ -689,14 +689,14 @@ void check_threshold(int M,int N)
         if (msgrcv(msgq_resp_id, &resp, sizeof(processData) - sizeof(long), 0, 0) == -1)
         {
             perror("msgrcv steal response");
-            break;
+            return;
         }
-        printf("\tMAIN:CHECK POINT 2 \n");
+        printf("\tMAIN:CHECK POINT 2 -> RECEIVED mtype=%ld \n", resp.mtype);
 
 
         /* 3. If nothing to steal (queue was empty), stop */
         if (resp.mtype == 12)
-            break;
+            return;
         printf("\tMAIN:CHECK POINT 3 \n");
 
         /* 4. Send stolen process to the lighter CPU */
@@ -755,11 +755,6 @@ int receiveProcesses(Queue *readyQueue,processData process,int type)
 
         if (process.mtype == 5)
         {
-          if (subCpu_created)
-          {
-            send_process_msg(msgq_sub1_id, &process, MTYPE_TERMINATE);
-            send_process_msg(msgq_sub2_id, &process, MTYPE_TERMINATE);
-          }
           receivingProcesses = 0;
           return -1;
         }

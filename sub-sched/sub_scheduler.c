@@ -23,6 +23,8 @@ int shmRT_id;     // remaining-time shm  (ftok 83 or 84)
 int *shmRT_addr;  // mapped address
 int my_msgq_id;   // main → this sub (ftok 75 or 76)
 int msgq_resp_id; // this sub → main (ftok 77)
+
+int current_tick_time = 0;
 int *load_shm;    // [count1,totalRT1,count2,totalRT2] (ftok 80)
 
 int sem_proj;   // sem key sent by the main 1-81 , 2-82
@@ -111,6 +113,7 @@ int main(int argc, char *argv[])
         }
 
         int now = getClk();
+        current_tick_time = now;
         if (now == last_tick)
         {
             // Still update load_shm for monitoring
@@ -131,7 +134,7 @@ int main(int argc, char *argv[])
             if (currProcess != NULL && currProcess->pid != -1)
             {
                 if(currProcess->last_stopped >= 0)
-                    currProcess->waiting_time += (getClk() - currProcess->last_stopped);
+                    currProcess->waiting_time += (current_tick_time - currProcess->last_stopped);
                 currProcess->lState = RESUME;
                 log_data(log_file, currProcess);
                 kill(currProcess->pid, SIGCONT);
@@ -168,6 +171,12 @@ int main(int argc, char *argv[])
     }
     printf("\tSUB %d finished main loop! Exiting cleanly.\n", cpu_id);
     update_load_shm();
+    
+    processData ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.mtype = 6;
+    msgsnd(msgq_resp_id, &ack, sizeof(processData) - sizeof(long), 0);
+
 
     write_perf(perf, perf_file);
     fclose(log_file);
@@ -192,7 +201,7 @@ void stall_sig(int signum)
 
     if (!stalled && currProcess != NULL && currProcess->pid != -1)
     {
-        currProcess->last_stopped = getClk();
+        currProcess->last_stopped = current_tick_time;
         kill(currProcess->pid, SIGSTOP);
         currProcess->state = 'W';
         currProcess->lState = STOP;
@@ -218,13 +227,29 @@ void stall_sig(int signum)
                 
             }
         }
-    stall_end_time = getClk() + 3;
+    stall_end_time = current_tick_time + 3;
     return;
 }
 
 void steal_handler(int signum)
 {
     (void)signum;
+
+    processData pd;
+    while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+    {
+        if (pd.mtype == 5)
+        {
+            receivingProcesses = 0;
+            break;
+        }
+        else if (pd.mtype == 1)
+        {
+            struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
+            *pcb = createPCB(pd);
+            enqueue(readyQueue, pcb);
+        }
+    }
 
     // this sends the rear of the ready queue to the main scheduler.
     // send the rear through the msgq_resp_id
@@ -261,7 +286,7 @@ void onProcessFinished(int signum)
         }
 
     // Remaining time reaches zero during this tick; completion is at end of tick.
-    currProcess->finish_time = getClk() + 1;
+    currProcess->finish_time = current_tick_time + 1;
     currProcess->remaining_time = 0;
     currProcess->state = 'F';
     currProcess->lState = FINISH;
@@ -308,7 +333,7 @@ void update_load_shm(void)
             running_rt = 0;
     }
 
-    int count = readyQueue->size ;
+    int count = readyQueue->size;
     int totalRT = total_remaining_time(readyQueue) + running_rt;
     down(load_sem_id);
     load_shm[base] = count;
