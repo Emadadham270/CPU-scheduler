@@ -1,5 +1,385 @@
-#id arrival runtime priority
-1	10	4	1
-2	10	14	4
-3	12	1	10
-4	13	5	2
+Choose the Scheduling Algorithm 
+1. RR
+2. HPF
+3. FCFS (2 CPUs)
+3
+Enter N
+3
+Enter M
+3
+Wait! The clock not initialized yet!
+Clock starting
+===========================we are at time step 0 ==========================
+===========================we are at time step 1 ==========================
+waiting for cpu selection for process 1
+        MAIN: select_cpu
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+selection done 1
+        MAIN: FCFS DOWN
+sent process 1 to cpu 1
+        MAIN: FCFS UP
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+20 131094 98328current process is 217467
+217467: remaining time: 20
+current process is 217467
+===========================we are at time step 2 ==========================
+waiting for cpu selection for process 2
+217467: remaining time: 19
+current process is 217467
+        MAIN: select_cpu
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+selection done 2
+        MAIN: FCFS DOWN
+sent process 2 to cpu 1
+        MAIN: FCFS UP
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+===========================we are at time step 3 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+217467: remaining time: 18
+        MAIN: read_all_load_shm UP
+         diff=============> 30
+current process is 217467
+==> diff: 30
+        MAIN:CHECK POINT 1 
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 2] RUNNING: none
+[SUB 2] READY QUEUE: empty
+
+[SUB 1] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 1] READY QUEUE: empty
+        MAIN:CHECK POINT 2 
+        MAIN:CHECK POINT 3 
+        MAIN: check_threshold 2
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+==> diff: 10
+217467: remaining time: 17
+current process is 217467
+        MAIN:CHECK POINT 1 
+        MAIN:CHECK POINT 2 
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+===========================we are at time step 6 ==========================
+waiting for cpu selection for process 3
+        MAIN: select_cpu
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+selection done 3
+        MAIN: FCFS DOWN
+sent process 3 to cpu 1
+        MAIN: FCFS UP
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+         diff=============> 18
+==> diff: 18
+
+[SUB 1] -------- Threshold Snapshot --------
+        MAIN:CHECK POINT 1 
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 2] RUNNING: id=2, remaining=10
+[SUB 2] READY QUEUE: empty
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 1] READY QUEUE: empty
+        MAIN:CHECK POINT 2 
+        MAIN:CHECK POINT 3 
+10 131095 98329current process is 217468
+217468: remaining time: 10
+current process is 217468
+        MAIN: check_threshold 2
+217468: remaining time: 9
+217467: remaining time: 16
+        MAIN: read_all_load_shm DOWN
+current process is 217468
+current process is 217467
+        MAIN: read_all_load_shm UP
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+===========================we are at time step 9 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+         diff=============> 2
+
+[SUB 1] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 1] READY QUEUE: empty
+        MAIN: read_all_load_shm DOWN
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 2] RUNNING: id=2, remaining=10
+        MAIN: read_all_load_shm UP
+[SUB 2] READY QUEUE:
+[SUB 2]   id=3, remaining=8
+
+[SUB 1] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 1] READY QUEUE: empty
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 2] RUNNING: id=2, remaining=10
+[SUB 2] READY QUEUE:
+[SUB 2]   id=3, remaining=8
+
+[SUB 1] -------- Threshold Snapshot --------
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 2] RUNNING: id=2, remaining=10
+[SUB 1] READY QUEUE: empty
+[SUB 2] READY QUEUE:
+[SUB 2]   id=3, remaining=8
+^[[5;1R===========================we are at time step 10 ==========================
+217467: remaining time: 15
+current process is 217467
+waiting for cpu selection for process 4
+        MAIN: select_cpu
+        MAIN: read_all_load_shm DOWN
+217468: remaining time: 8
+current process is 217468
+        MAIN: read_all_load_shm UP
+selection done 4
+        MAIN: FCFS DOWN
+sent process 4 to cpu 1
+        MAIN: FCFS UP
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+===========================we are at time step 11 ==========================
+        MAIN: read_all_load_shm DOWN
+217467: remaining time: 14
+217468: remaining time: 7
+        MAIN: read_all_load_shm UP
+current process is 217467
+current process is 217468
+===========================we are at time step 12 ==========================
+217467: remaining time: 13
+        MAIN: check_threshold===============================
+current process is 217467
+        MAIN: read_all_load_shm DOWN
+217468: remaining time: 6
+current process is 217468
+        MAIN: read_all_load_shm UP
+         diff=============> 3
+        MAIN: read_all_load_shm DOWN
+
+[SUB 1] -------- Threshold Snapshot --------
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 2] RUNNING: id=2, remaining=10
+[SUB 1] READY QUEUE:
+[SUB 2] READY QUEUE:
+[SUB 1]   id=4, remaining=1
+[SUB 2]   id=3, remaining=8
+        MAIN: read_all_load_shm UP
+===========================we are at time step 13 ==========================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+217468: remaining time: 5
+217467: remaining time: 12
+current process is 217468
+current process is 217467
+===========================we are at time step 14 ==========================
+        MAIN: read_all_load_shm DOWN
+217467: remaining time: 11
+217468: remaining time: 4
+current process is 217467
+current process is 217468
+        MAIN: read_all_load_shm UP
+===========================we are at time step 15 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+217467: remaining time: 10
+217468: remaining time: 3
+current process is 217467
+current process is 217468
+        MAIN: read_all_load_shm UP
+         diff=============> 3
+        MAIN: read_all_load_shm DOWN
+
+[SUB 1] -------- Threshold Snapshot --------
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 1] READY QUEUE:
+[SUB 2] RUNNING: id=2, remaining=10
+[SUB 1]   id=4, remaining=1
+[SUB 2] READY QUEUE:
+[SUB 2]   id=3, remaining=8
+        MAIN: read_all_load_shm UP
+===========================we are at time step 16 ==========================
+        MAIN: read_all_load_shm DOWN
+217468: remaining time: 2
+current process is 217468
+        MAIN: read_all_load_shm UP
+217467: remaining time: 9
+current process is 217467
+===========================we are at time step 17 ==========================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+217467: remaining time: 8
+current process is 217467
+217468: remaining time: 1
+Process finished at time 17
+===========================we are at time step 18 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+217467: remaining time: 7
+        MAIN: read_all_load_shm UP
+current process is 217467
+         diff=============> 13
+
+[SUB 1] -------- Threshold Snapshot --------
+==> diff: 13
+[SUB 1] RUNNING: id=1, remaining=20
+        MAIN:CHECK POINT 1 
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 2] RUNNING: none
+[SUB 2] READY QUEUE:
+[SUB 2]   id=3, remaining=8
+[SUB 1] READY QUEUE: empty
+        MAIN:CHECK POINT 2 
+        MAIN:CHECK POINT 3 
+        MAIN: check_threshold 2
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+217467: remaining time: 6
+==> diff: 11
+current process is 217467
+        MAIN:CHECK POINT 1 
+        MAIN:CHECK POINT 2 
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+===========================we are at time step 21 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+         diff=============> 11
+==> diff: 11
+        MAIN:CHECK POINT 1 
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 2] RUNNING: id=3, remaining=8
+[SUB 2] READY QUEUE:
+[SUB 2]   id=4, remaining=1
+
+[SUB 1] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=1, remaining=20
+[SUB 1] READY QUEUE: empty
+        MAIN:CHECK POINT 2 
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+8 131095 98329current process is 218050
+218050: remaining time: 8
+current process is 218050
+===========================we are at time step 22 ==========================
+218050: remaining time: 7
+        MAIN: read_all_load_shm DOWN
+current process is 218050
+217467: remaining time: 5
+current process is 217467
+        MAIN: read_all_load_shm UP
+===========================we are at time step 23 ==========================
+        MAIN: read_all_load_shm DOWN
+218050: remaining time: 6
+current process is 218050
+        MAIN: read_all_load_shm UP
+217467: remaining time: 4
+current process is 217467
+===========================we are at time step 24 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+217467: remaining time: 3
+218050: remaining time: 5
+current process is 218050
+current process is 217467
+        MAIN: read_all_load_shm UP
+         diff=============> 11
+==> diff: 11
+
+[SUB 2] -------- Threshold Snapshot --------
+        MAIN:CHECK POINT 1 
+[SUB 2] RUNNING: id=3, remaining=8
+[SUB 2] READY QUEUE:
+[SUB 2]   id=4, remaining=1
+
+[SUB 1] -------- Threshold Snapshot --------
+        MAIN:CHECK POINT 2 
+[SUB 1] RUNNING: id=1, remaining=20
+        MAIN: read_all_load_shm DOWN
+[SUB 1] READY QUEUE: empty
+        MAIN: read_all_load_shm UP
+===========================we are at time step 25 ==========================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+217467: remaining time: 2
+current process is 217467
+218050: remaining time: 4
+current process is 218050
+===========================we are at time step 26 ==========================
+217467: remaining time: 1
+        MAIN: read_all_load_shm DOWN
+Process finished at time 26
+218050: remaining time: 3
+current process is 218050
+        MAIN: read_all_load_shm UP
+===========================we are at time step 27 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+218050: remaining time: 2
+        MAIN: read_all_load_shm UP
+         diff=============> 9
+current process is 218050
+==> diff: 9
+
+[SUB 2] -------- Threshold Snapshot --------
+
+[SUB 1] -------- Threshold Snapshot --------
+        MAIN:CHECK POINT 1 
+[SUB 1] RUNNING: none
+[SUB 1] READY QUEUE: empty
+[SUB 2] RUNNING: id=3, remaining=8
+        MAIN:CHECK POINT 2 
+[SUB 2] READY QUEUE: empty
+        MAIN:CHECK POINT 3 
+        MAIN: check_threshold 2
+        MAIN: read_all_load_shm DOWN
+218050: remaining time: 1
+Process finished at time 30
+        MAIN: read_all_load_shm UP
+==> diff: 7
+        MAIN:CHECK POINT 1 
+        MAIN:CHECK POINT 2 
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+===========================we are at time step 30 ==========================
+        MAIN: check_threshold===============================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+         diff=============> 1
+        MAIN: read_all_load_shm DOWN
+
+[SUB 2] -------- Threshold Snapshot --------
+[SUB 2] RUNNING: none
+[SUB 2] READY QUEUE: empty
+
+[SUB 1] -------- Threshold Snapshot --------
+[SUB 1] RUNNING: id=4, remaining=1
+[SUB 1] READY QUEUE: empty
+        MAIN: read_all_load_shm UP
+1 131094 98328current process is 218289
+218289: remaining time: 1
+Process finished at time 30
+===========================we are at time step 31 ==========================
+        MAIN: read_all_load_shm DOWN
+        MAIN: read_all_load_shm UP
+Clock terminating!

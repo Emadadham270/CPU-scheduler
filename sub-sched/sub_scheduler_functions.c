@@ -128,15 +128,21 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
     {
         // printf("c %d at time %d---------innnnnn22222222--------------\n",cpu_id,getClk());
         int size = readyQueue->size;
-        printf("we got the point \n");
-        printf("cpu %d , size %d\n", cpu_id, size);
+        // printf("we got the point \n");
+        // printf("cpu %d , size %d\n", cpu_id, size);
         *currProcess = dequeue(readyQueue);
-        int totalRT = total_remaining_time(readyQueue);
-        size = readyQueue->size;
-        printf("cpu %d , size %d , RT %d\n", cpu_id, size, totalRT);
-        printf("we out of the point \n");
 
-        write_load_shm(load_shm, cpu_id, size, totalRT);
+        int ready_count = readyQueue->size;
+        int ready_total_rt = total_remaining_time(readyQueue);
+        // int running_count = 1;
+        int running_rt = (*currProcess)->remaining_time;
+
+        // size = ready_count + running_count;
+        int totalRT = ready_total_rt + running_rt;
+        // printf("cpu %d , size %d , RT %d\n", cpu_id, size, totalRT);
+        // printf("we out of the point \n");
+
+        write_load_shm(load_shm, cpu_id, ready_count, totalRT);
         runProcess(*currProcess, log_file);
     }
     
@@ -152,6 +158,7 @@ void log_data(FILE *log_file, PCB *pcb)
 {
     char stateStr[100];
     int finishFlag = 0;
+    int log_time = getClk();
 
     // Special case for 2 CPU's
     if(pcb->lState == STOLEN) {
@@ -167,6 +174,8 @@ void log_data(FILE *log_file, PCB *pcb)
     case FINISH:
         strcpy(stateStr, "finished");
         finishFlag = 1;
+        if (pcb->finish_time != -1)
+            log_time = pcb->finish_time;
         break;
     case STOP:
         strcpy(stateStr, "stopped");
@@ -179,9 +188,9 @@ void log_data(FILE *log_file, PCB *pcb)
         break;
     }
 
-    fprintf(log_file,
+        fprintf(log_file,
             "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d",
-            getClk(), pcb->id, stateStr, pcb->arrival, pcb->runtime,
+            log_time, pcb->id, stateStr, pcb->arrival, pcb->runtime,
             pcb->remaining_time, pcb->waiting_time);
 
     if (finishFlag)
@@ -279,7 +288,7 @@ int attach_2cpu_ipcs(int cpu_id)
 
 void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT)
 {
-    printf("\tSUB %d: write_load_shm DOWN\n", cpu_id);
+    // printf("\tSUB %d: write_load_shm DOWN\n", cpu_id);
     down(load_sem_id);
     if (cpu_id == 1)
     {
@@ -292,7 +301,7 @@ void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT)
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT2] = totalRT;
     }
     up(load_sem_id);
-    printf("\tSUB %d: write_load_shm UP\n", cpu_id);
+    // printf("\tSUB %d: write_load_shm UP\n", cpu_id);
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)

@@ -81,6 +81,7 @@ PCB   *dequeue_rear(Queue* q) {
     free(q->rear);
     q->rear = trav;
     q->rear->next = NULL;
+    q->size--;
     return p;
 }
 

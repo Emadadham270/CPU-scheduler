@@ -373,7 +373,13 @@ void handle_context_switch(struct PCB *oldProcess, struct PCB *newProcess, FILE 
 void wait_N_secs(int pen,int N)
 {
     int curr = getClk() + pen;
-    N_time = (N_time + pen) % N;
+    if (N > 0)
+    {
+        /* The current tick was already counted before entering this wait.
+         * Only account for the additional skipped ticks. */
+        int skipped_ticks = (pen > 0) ? (pen - 1) : 0;
+        N_time = (N_time + skipped_ticks) % N;
+    }
     while (curr > getClk())
     {
         
@@ -404,6 +410,7 @@ void log_data(FILE *log_file, PCB *pcb)
 {
     char stateStr[100];
     bool finishFlag = 0;
+    int log_time = getClk();
 
     // #At time x process y state arr w total z remain y wait k
     // time: getClk(), process: id, state: lState, arr: arrival, total: runtime, remain: remaining_time, wait: waiting_time
@@ -416,6 +423,8 @@ void log_data(FILE *log_file, PCB *pcb)
     case FINISH:
         strcpy(stateStr, "finished");
         finishFlag = 1;
+        if (pcb->finish_time != -1)
+            log_time = pcb->finish_time;
         break;
     case STOP:
         strcpy(stateStr, "stopped");
@@ -428,7 +437,7 @@ void log_data(FILE *log_file, PCB *pcb)
         break;
     }
 
-    fprintf(log_file, "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d", getClk(), pcb->id, stateStr, pcb->arrival, pcb->runtime, pcb->remaining_time, pcb->waiting_time);
+    fprintf(log_file, "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d", log_time, pcb->id, stateStr, pcb->arrival, pcb->runtime, pcb->remaining_time, pcb->waiting_time);
     if (finishFlag)
     {
         int TA = pcb->finish_time - pcb->arrival;
@@ -633,9 +642,21 @@ processData pcb_to_processData(PCB *pcb)
 void check_threshold(int M,int N)
 {
     int c1, c2, rt1, rt2;
-    printf("\tMAIN: check_threshold\n");
+    printf("\tMAIN: check_threshold===============================\n");
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
     int diff = abs(rt1 - rt2);
+    printf("\t diff (pre-refresh)=============> %d\n", diff);
+
+    /* Ask each sub-scheduler to print local running/ready process details
+     * before entering the steal loop. */
+    kill(idArr[0], SIGWINCH);
+    kill(idArr[1], SIGWINCH);
+
+    /* Re-read after sub-schedulers refresh and print their snapshots. */
+    read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
+    diff = abs(rt1 - rt2);
+    printf("\t diff (post-refresh)=============> %d\n", diff);
+
     while (diff > M)
     {
         printf("==> diff: %d\n", diff);
@@ -653,18 +674,23 @@ void check_threshold(int M,int N)
 
         /* 1. Signal busier sub-scheduler to steal its rear process */
         kill(idArr[busier_idx], SIGURG);
+        
 
         /* 2. Wait for response (blocking) */
+        printf("\tMAIN:CHECK POINT 1 \n");
         processData resp;
         if (msgrcv(msgq_resp_id, &resp, sizeof(processData) - sizeof(long), 0, 0) == -1)
         {
             perror("msgrcv steal response");
             break;
         }
+        printf("\tMAIN:CHECK POINT 2 \n");
+
 
         /* 3. If nothing to steal (queue was empty), stop */
         if (resp.mtype == 12)
             break;
+        printf("\tMAIN:CHECK POINT 3 \n");
 
         /* 4. Send stolen process to the lighter CPU */
         send_process_msg(lighter_msgq, &resp, MTYPE_NEW_PROCESS);
@@ -673,7 +699,7 @@ void check_threshold(int M,int N)
         kill(idArr[0], SIGUSR2);
         kill(idArr[1], SIGUSR2);
         wait_N_secs(3, N);
-
+        
         /* 6. Re-read and check again */
         printf("\tMAIN: check_threshold 2\n");
         read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
