@@ -1,6 +1,6 @@
 #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
 At	time	1	process	1	started	arr	1	total	20	remain	20	wait	0
 At	time	5	process	2	was	stolen
-At	time	4	process	1	stopped	arr	1	total	20	remain	20	wait	0
-At	time	8	process	1	resumed	arr	1	total	20	remain	20	wait	4
-At	time	25	process	1	finished	arr	1	total	20	remain	0	wait	4	TA	24	WTA	1.20
+At	time	5	process	1	stopped	arr	1	total	20	remain	20	wait	0
+At	time	8	process	1	resumed	arr	1	total	20	remain	20	wait	3
+At	time	24	process	1	finished	arr	1	total	20	remain	0	wait	3	TA	23	WTA	1.15
