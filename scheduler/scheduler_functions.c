@@ -19,6 +19,7 @@
 #define MSGQ_RESPONSE_PROJ 77
 #define LOAD_SHM_PROJ      80
 #define LOAD_SEM_PROJ      85
+#define THRESHOLD_SEM_PROJ 86
 
 /* Load SHM layout: 4 ints = [count1, totalRT1, count2, totalRT2] */
 #define LOAD_SHM_SIZE          (4 * sizeof(int))
@@ -287,62 +288,47 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
     (void)currProcess;
     (void)log_file;
 
-    /* First call: create IPCs and fork two sub-schedulers */
-    if (!subCpu_created && !isEmpty(readyQueue))
+    /* Route all queued processes to the appropriate sub-scheduler.
+     * Distribution is based on READY-queue counts only (running process excluded). */
+    if (!isEmpty(readyQueue))
     {
-        subCpu_created = 1;
-        if(create_2cpu_ipcs())
-            return;
+        int c1, c2, rt1, rt2;
+        read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
+        int projected_ready_1 = c1;
+        int projected_ready_2 = c2;
+        int projected_total_1 = rt1;
+        int projected_total_2 = rt2;
 
-        for (int i = 1; i <= 2; i++)
+        while (!isEmpty(readyQueue))
         {
-            pid_t pid = fork();
-            if (pid == -1)
-            {
-                perror("fork failed");
-                exit(1);
-            }
-            if (pid == 0) /* child only */
-            {
-                char cpu_id_str[16];
-                snprintf(cpu_id_str, sizeof(cpu_id_str), "%d", i);
-                execl("../outFiles/sub_scheduler.out", "sub_scheduler.out",
-                      cpu_id_str, (char *)NULL);
-                perror("execl sub_scheduler failed");
-                _exit(1);
-            }
-            idArr[i - 1] = pid; /* parent stores child PID */
-        }
-    }
+            PCB *pcb = dequeue(readyQueue);
+            processData p = pcb_to_processData(pcb);
 
-    /* Route all queued processes to the appropriate sub-scheduler */
-    while (!isEmpty(readyQueue))
-    {
-        PCB *pcb = dequeue(readyQueue);
-        processData p = pcb_to_processData(pcb);
-        printf("waiting for cpu selection for process %d\n", pcb->id);
-       
-        int cpu = select_cpu();
-        printf("selection done %d\n", pcb->id);
-        
-        printf("\tMAIN: FCFS DOWN\n");
+            int cpu = (projected_ready_1 <= projected_ready_2) ? 1 : 2;
+            if (cpu == 1)
+            {
+                send_process_msg(msgq_sub1_id, &p, MTYPE_NEW_PROCESS);
+                projected_ready_1++;
+                projected_total_1 += p.runtime;
+            }
+            else
+            {
+                send_process_msg(msgq_sub2_id, &p, MTYPE_NEW_PROCESS);
+                projected_ready_2++;
+                projected_total_2 += p.runtime;
+            }
+
+            free(pcb);
+        }
+
+        /* Publish projected load so global SHM stays consistent immediately,
+         * even before sub-schedulers drain their message queues. */
         down(load_sem_id);
-        if (cpu == 1){
-            send_process_msg(msgq_sub1_id, &p, MTYPE_NEW_PROCESS);
-            printf("sent process %d to cpu 1\n", pcb->id);
-            load_shm_addr[LOAD_SHM_SLOT_COUNT1]++;
-        }
-        else{
-            send_process_msg(msgq_sub2_id, &p, MTYPE_NEW_PROCESS);
-            printf("sent process %d to cpu 2\n", pcb->id);
-            // down(load_sem_id);
-            load_shm_addr[LOAD_SHM_SLOT_COUNT2]++;
-            // up(load_sem_id);
-        }
+        load_shm_addr[LOAD_SHM_SLOT_COUNT1] = projected_ready_1;
+        load_shm_addr[LOAD_SHM_SLOT_TOTALRT1] = projected_total_1;
+        load_shm_addr[LOAD_SHM_SLOT_COUNT2] = projected_ready_2;
+        load_shm_addr[LOAD_SHM_SLOT_TOTALRT2] = projected_total_2;
         up(load_sem_id);
-        printf("\tMAIN: FCFS UP\n");
-        
-        free(pcb);
     }
 
     /* Every N ticks: check load balance and steal if needed */
@@ -355,6 +341,11 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
              
             check_threshold(M, N);
         }
+            /* Allow sub-schedulers to execute after main finishes this tick's
+             * FCFS routing/threshold decision (one permit per sub-scheduler). */
+            union Semun gate;
+            gate.val = 2;
+            semctl(threshold_sem_id, 0, SETVAL, gate);
     }
 }
 
@@ -557,6 +548,20 @@ int create_2cpu_ipcs()
         exit(-1);
     }
 
+    key_t thresholdSemKey = ftok(KEYFILE_PATH, THRESHOLD_SEM_PROJ);
+    threshold_sem_id = semget(thresholdSemKey, 1, 0666 | IPC_CREAT | IPC_EXCL);
+    if (threshold_sem_id == -1)
+    {
+        threshold_sem_id = semget(thresholdSemKey, 1, 0666);
+    }
+
+    semun.val = 0;
+    if (semctl(threshold_sem_id, 0, SETVAL, semun) == -1)
+    {
+        perror("Error in threshold semctl");
+        exit(-1);
+    }
+
     return 0;
 }
 /*
@@ -594,6 +599,12 @@ void destroy_2cpu_ipcs()
         int shm_id = shmget(key_shm, LOAD_SHM_SIZE, 0666);
         if (shm_id != -1)
             shmctl(shm_id, IPC_RMID, NULL);
+    }
+
+    if (threshold_sem_id != -1)
+    {
+        semctl(threshold_sem_id, 0, IPC_RMID);
+        threshold_sem_id = -1;
     }
 }
 
@@ -643,19 +654,15 @@ void check_threshold(int M,int N)
 {
     int c1, c2, rt1, rt2;
     printf("\tMAIN: check_threshold===============================\n");
+
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
     int diff = abs(rt1 - rt2);
-    printf("\t diff (pre-refresh)=============> %d\n", diff);
+    printf("\tMAIN: diff (pre-refresh) -> c1=%d, rt1=%d | c2=%d, rt2=%d | diff=%d\n", c1, rt1, c2, rt2, diff);
 
-    /* Ask each sub-scheduler to print local running/ready process details
-     * before entering the steal loop. */
-    kill(idArr[0], SIGWINCH);
-    kill(idArr[1], SIGWINCH);
-
-    /* Re-read after sub-schedulers refresh and print their snapshots. */
+    /* No snapshot signal: use a second synchronous read as post-refresh view. */
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
     diff = abs(rt1 - rt2);
-    printf("\t diff (post-refresh)=============> %d\n", diff);
+    printf("\tMAIN: diff (post-refresh) -> c1=%d, rt1=%d | c2=%d, rt2=%d | diff=%d\n", c1, rt1, c2, rt2, diff);
 
     while (diff > M)
     {
@@ -682,18 +689,49 @@ void check_threshold(int M,int N)
         if (msgrcv(msgq_resp_id, &resp, sizeof(processData) - sizeof(long), 0, 0) == -1)
         {
             perror("msgrcv steal response");
-            break;
+            return;
         }
-        printf("\tMAIN:CHECK POINT 2 \n");
+        printf("\tMAIN:CHECK POINT 2 -> RECEIVED mtype=%ld \n", resp.mtype);
 
 
         /* 3. If nothing to steal (queue was empty), stop */
         if (resp.mtype == 12)
-            break;
+            return;
         printf("\tMAIN:CHECK POINT 3 \n");
 
         /* 4. Send stolen process to the lighter CPU */
         send_process_msg(lighter_msgq, &resp, MTYPE_NEW_PROCESS);
+
+        /* Reflect the steal transfer immediately in load SHM so the very next
+         * threshold iteration does not operate on stale counts/RT totals. */
+        int moved_rt = resp.runtime;
+        if (busier_idx == 0)
+        {
+            if (c1 > 0)
+                c1--;
+            rt1 -= moved_rt;
+            if (rt1 < 0)
+                rt1 = 0;
+            c2++;
+            rt2 += moved_rt;
+        }
+        else
+        {
+            if (c2 > 0)
+                c2--;
+            rt2 -= moved_rt;
+            if (rt2 < 0)
+                rt2 = 0;
+            c1++;
+            rt1 += moved_rt;
+        }
+
+        down(load_sem_id);
+        load_shm_addr[LOAD_SHM_SLOT_COUNT1] = c1;
+        load_shm_addr[LOAD_SHM_SLOT_TOTALRT1] = rt1;
+        load_shm_addr[LOAD_SHM_SLOT_COUNT2] = c2;
+        load_shm_addr[LOAD_SHM_SLOT_TOTALRT2] = rt2;
+        up(load_sem_id);
 
         /* 5. Stall both CPUs for 3-second overhead */
         kill(idArr[0], SIGUSR2);
@@ -702,9 +740,11 @@ void check_threshold(int M,int N)
         
         /* 6. Re-read and check again */
         printf("\tMAIN: check_threshold 2\n");
+        
         read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
         diff = abs(rt1 - rt2);
     }
+
 }
 
 int receiveProcesses(Queue *readyQueue,processData process,int type)
@@ -715,11 +755,6 @@ int receiveProcesses(Queue *readyQueue,processData process,int type)
 
         if (process.mtype == 5)
         {
-          if (subCpu_created)
-          {
-            send_process_msg(msgq_sub1_id, &process, MTYPE_TERMINATE);
-            send_process_msg(msgq_sub2_id, &process, MTYPE_TERMINATE);
-          }
           receivingProcesses = 0;
           return -1;
         }

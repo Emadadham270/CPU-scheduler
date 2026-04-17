@@ -9,16 +9,22 @@ void update_load_shm(void);
 static processData pcb_to_processData(PCB *pcb, long mtype);
 void steal_handler(int signum);
 void dump_local_processes(int signum);
+static int get_running_remaining_time(void);
+static int try_down_nonblocking(int sem);
+static void refresh_load_shm_nonblocking(void);
 
 // global vars
 
 int load_sem_id;
+int threshold_sem_id = -1;
 int cpu_id;
 int sem_id;       // tick-gate semaphore (ftok 81 or 82)
 int shmRT_id;     // remaining-time shm  (ftok 83 or 84)
 int *shmRT_addr;  // mapped address
 int my_msgq_id;   // main → this sub (ftok 75 or 76)
 int msgq_resp_id; // this sub → main (ftok 77)
+
+int current_tick_time = 0;
 int *load_shm;    // [count1,totalRT1,count2,totalRT2] (ftok 80)
 
 int sem_proj;   // sem key sent by the main 1-81 , 2-82
@@ -48,7 +54,6 @@ int main(int argc, char *argv[])
     signal(SIGUSR2, stall_sig);
     signal(SIGUSR1, onProcessFinished);
     signal(SIGURG, steal_handler);
-    signal(SIGWINCH, dump_local_processes);
 
     // we need to choose another signal for the steal command, because SIGUSR1 is used for the process finished signal, and we need to make sure that the steal command signal handler will not interfere with the process finished signal handler.
     if (argc < 2)
@@ -108,15 +113,19 @@ int main(int argc, char *argv[])
         }
 
         int now = getClk();
+        current_tick_time = now;
         if (now == last_tick)
         {
             // Still update load_shm for monitoring
             update_load_shm();
             continue;
         }
-        
 
+        /* Threshold gate: consume one permit for this tick.
+         * Main posts permits only after finishing threshold decision. */
+        down(threshold_sem_id);
         last_tick = now;
+
 
         if (stalled && now >= stall_end_time)
         {
@@ -125,7 +134,7 @@ int main(int argc, char *argv[])
             if (currProcess != NULL && currProcess->pid != -1)
             {
                 if(currProcess->last_stopped >= 0)
-                    currProcess->waiting_time += (getClk() - currProcess->last_stopped);
+                    currProcess->waiting_time += (current_tick_time - currProcess->last_stopped);
                 currProcess->lState = RESUME;
                 log_data(log_file, currProcess);
                 kill(currProcess->pid, SIGCONT);
@@ -160,8 +169,14 @@ int main(int argc, char *argv[])
         up(load_sem_id);
         // printf("\tSUB %d remaining_processes loop UP\n", cpu_id);
     }
-    // printf("sub %d finished--------------------------\n", cpu_id);
+    printf("\tSUB %d finished main loop! Exiting cleanly.\n", cpu_id);
     update_load_shm();
+    
+    processData ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.mtype = 6;
+    msgsnd(msgq_resp_id, &ack, sizeof(processData) - sizeof(long), 0);
+
 
     write_perf(perf, perf_file);
     fclose(log_file);
@@ -186,7 +201,7 @@ void stall_sig(int signum)
 
     if (!stalled && currProcess != NULL && currProcess->pid != -1)
     {
-        currProcess->last_stopped = getClk();
+        currProcess->last_stopped = current_tick_time;
         kill(currProcess->pid, SIGSTOP);
         currProcess->state = 'W';
         currProcess->lState = STOP;
@@ -212,13 +227,29 @@ void stall_sig(int signum)
                 
             }
         }
-    stall_end_time = getClk() + 3;
+    stall_end_time = current_tick_time + 3;
     return;
 }
 
 void steal_handler(int signum)
 {
     (void)signum;
+
+    processData pd;
+    while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+    {
+        if (pd.mtype == 5)
+        {
+            receivingProcesses = 0;
+            break;
+        }
+        else if (pd.mtype == 1)
+        {
+            struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
+            *pcb = createPCB(pd);
+            enqueue(readyQueue, pcb);
+        }
+    }
 
     // this sends the rear of the ready queue to the main scheduler.
     // send the rear through the msgq_resp_id
@@ -255,7 +286,7 @@ void onProcessFinished(int signum)
         }
 
     // Remaining time reaches zero during this tick; completion is at end of tick.
-    currProcess->finish_time = getClk() + 1;
+    currProcess->finish_time = current_tick_time + 1;
     currProcess->remaining_time = 0;
     currProcess->state = 'F';
     currProcess->lState = FINISH;
@@ -292,20 +323,17 @@ void update_load_shm(void)
 {
     /* slots: cpu 1 → indices 0,1 ; cpu 2 → indices 2,3 */
     int base = (cpu_id == 1) ? 0 : 2;
-    // int running_count = 0;
     int running_rt = 0;
 
     if (currProcess != NULL)
     {
-        // running_count = 1;
-        // down(sem_id);
-        running_rt = currProcess->remaining_time;
-        // up(sem_id);
+        /* Remaining time is advanced by the child process in shm each tick. */
+        running_rt = get_running_remaining_time();
         if (running_rt < 0)
             running_rt = 0;
     }
 
-    int count = readyQueue->size ;
+    int count = readyQueue->size;
     int totalRT = total_remaining_time(readyQueue) + running_rt;
     down(load_sem_id);
     load_shm[base] = count;
@@ -313,18 +341,73 @@ void update_load_shm(void)
     up(load_sem_id);
 }
 
+static int get_running_remaining_time(void)
+{
+    if (currProcess == NULL)
+        return 0;
+
+    int rt = currProcess->remaining_time;
+    if (shmRT_addr != NULL && (long)shmRT_addr != -1)
+        rt = *shmRT_addr;
+
+    return rt;
+}
+
+static int try_down_nonblocking(int sem)
+{
+    struct sembuf op;
+    op.sem_num = 0;
+    op.sem_op = -1;
+    op.sem_flg = IPC_NOWAIT;
+
+    while (semop(sem, &op, 1) == -1)
+    {
+        if (errno == EINTR)
+            continue;
+        return -1;
+    }
+
+    return 0;
+}
+
+static void refresh_load_shm_nonblocking(void)
+{
+    if (readyQueue == NULL || load_shm == NULL || (long)load_shm == -1)
+        return;
+
+    int base = (cpu_id == 1) ? 0 : 2;
+    int running_rt = 0;
+    if (currProcess != NULL)
+    {
+        running_rt = get_running_remaining_time();
+        if (running_rt < 0)
+            running_rt = 0;
+    }
+
+    int count = readyQueue->size;
+    int totalRT = total_remaining_time(readyQueue) + running_rt;
+
+    /* Signal handlers must never block while trying to refresh counters. */
+    if (try_down_nonblocking(load_sem_id) == 0)
+    {
+        load_shm[base] = count;
+        load_shm[base + 1] = totalRT;
+        up(load_sem_id);
+    }
+}
+
 void dump_local_processes(int signum)
 {
     (void)signum;
 
-    /* Refresh shared-memory load slots right before printing the snapshot. */
-    // update_load_shm();
+    /* Best-effort refresh; never block in this signal handler. */
+    refresh_load_shm_nonblocking();
 
     printf("\n[SUB %d] -------- Threshold Snapshot --------\n", cpu_id);
 
     if (currProcess != NULL)
     {
-        int running_rt = *shmRT_addr;
+        int running_rt = get_running_remaining_time();
         if (running_rt < 0)
             running_rt = 0;
         printf("[SUB %d] RUNNING: id=%d, remaining=%d\n", cpu_id, currProcess->id, running_rt);

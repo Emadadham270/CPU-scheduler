@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 extern int load_sem_id;
+extern int threshold_sem_id;
 extern int cpu_id;
 extern int sem_id;
 extern int shmRT_id;
@@ -18,6 +19,7 @@ extern int my_msgq_id;
 extern int msgq_resp_id;
 extern int *load_shm;
 extern int pass;
+extern int current_tick_time;
 
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
