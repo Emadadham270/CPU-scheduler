@@ -46,4 +46,8 @@ int select_cpu();
 int send_process_msg(int msgq_id, processData *p, long mtype);
 processData pcb_to_processData(PCB *pcb);
 int receiveProcesses(Queue *readyQueue, processData p, int type);
+
+void read_all_load_shm(int *load_shm_addr,
+                       int *count1, int *totalRT1,
+                       int *count2, int *totalRT2);
 #endif // SCHEDULER_H

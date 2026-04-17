@@ -8,6 +8,7 @@ void onProcessFinished(int signum);
 void update_load_shm(void);
 static processData pcb_to_processData(PCB *pcb, long mtype);
 void steal_handler(int signum);
+void dump_local_processes(int signum);
 
 // global vars
 
@@ -29,9 +30,10 @@ int stall_end_time = -1;
 
 // process
 Queue *readyQueue;
-int processFinishedSignal = 0;
+
 int receivingProcesses = 1;
 struct PCB *currProcess = NULL;
+int context_switch_until = -1;
 int dispatched_this_tick = 0;
 int pass = 0;
 
@@ -46,6 +48,7 @@ int main(int argc, char *argv[])
     signal(SIGUSR2, stall_sig);
     signal(SIGUSR1, onProcessFinished);
     signal(SIGURG, steal_handler);
+    signal(SIGWINCH, dump_local_processes);
 
     // we need to choose another signal for the steal command, because SIGUSR1 is used for the process finished signal, and we need to make sure that the steal command signal handler will not interfere with the process finished signal handler.
     if (argc < 2)
@@ -74,12 +77,12 @@ int main(int argc, char *argv[])
 
     int last_tick = -1;
     int base2nd = (cpu_id == 1) ? 2 : 0; // don't terminate untill all the processes are done
-    // while (!isEmpty(readyQueue) || receivingProcesses || currProcess||load_shm[base2nd+1])
-    printf("\tSUB %d remaining_processes init DOWN\n", cpu_id);
+    
+    // printf("\tSUB %d remaining_processes init DOWN\n", cpu_id);
     down(load_sem_id);
     int remaining_processes = load_shm[base2nd + 1];
     up(load_sem_id);
-    printf("\tSUB %d remaining_processes init UP\n", cpu_id);
+    // printf("\tSUB %d remaining_processes init UP\n", cpu_id);
     while (!isEmpty(readyQueue) || receivingProcesses || currProcess || remaining_processes)
     {
         // Always drain the message queue immediately (not just once per tick)
@@ -97,10 +100,10 @@ int main(int argc, char *argv[])
                 *pcb = createPCB(pd);
                 if (perf.first_arrival == -1)
                     perf.first_arrival = pcb->arrival;
-                printf("iam cpu %d and i recieved proceess %d-----------------------\n", cpu_id, pcb->id);
+                // printf("iam cpu %d and i recieved proceess %d-----------------------\n", cpu_id, pcb->id);
                 enqueue(readyQueue, pcb);
-                if (!processFinishedSignal && !stalled)
-                    FCFS_algo(readyQueue, &currProcess, log_file);
+                // if (!stalled)
+                //     FCFS_algo(readyQueue, &currProcess, log_file);
             }
         }
 
@@ -111,42 +114,51 @@ int main(int argc, char *argv[])
             update_load_shm();
             continue;
         }
-        // int base = (cpu_id == 1) ? 0 : 2;
-
-        // down(load_sem_id);
-        // printf("==> I am cpu %d and i have %d at time %d\n", cpu_id, load_shm[base], now);
-        // up(load_sem_id);
+        
 
         last_tick = now;
 
         if (stalled && now >= stall_end_time)
         {
             stalled = 0;
-        }
-
-        if (currProcess && processFinishedSignal)
-        {
-        }
-        else if (!processFinishedSignal)
-        {
-            // printf("cpu %d is scheduling at time %d----------%d-------------\n", cpu_id, now,stalled);
-            if (!stalled)
-                FCFS_algo(readyQueue, &currProcess, log_file);
-
-            if (currProcess && !stalled)
+            //////////////////////
+            if (currProcess != NULL && currProcess->pid != -1)
             {
-                union Semun s;
-                s.val = 0;
-                semctl(sem_id, 0, SETVAL, s);
-                up(sem_id);
+                if(currProcess->last_stopped >= 0)
+                    currProcess->waiting_time += (getClk() - currProcess->last_stopped);
+                currProcess->lState = RESUME;
+                log_data(log_file, currProcess);
+                kill(currProcess->pid, SIGCONT);
+                currProcess->state = 'R';
             }
         }
+
+      // print the while variables
+    //   printf("cpu %d at time %d: currProcess=%d, readyQueue_size=%d, receivingProcesses=%d, stalled=%d\n",
+    //          cpu_id, now, currProcess ? currProcess->id : -1, readyQueue->size, receivingProcesses, stalled);
+
+        if (!currProcess && !isEmpty(readyQueue) && !stalled &&
+            (context_switch_until == -1 || now >= context_switch_until))
+        {
+            // Dispatch next process when CPU becomes idle.
+            FCFS_algo(readyQueue, &currProcess, log_file);
+            context_switch_until = -1;
+        }
+
+        if (currProcess && !stalled)
+        {
+            // Grant exactly one tick of execution to the running process.
+            union Semun s;
+            s.val = 0;
+            semctl(sem_id, 0, SETVAL, s);
+            up(sem_id);
+        }
         update_load_shm();
-        printf("\tSUB %d remaining_processes loop DOWN\n", cpu_id);
+        // printf("\tSUB %d remaining_processes loop DOWN\n", cpu_id);
         down(load_sem_id);
         remaining_processes = load_shm[base2nd + 1];
         up(load_sem_id);
-        printf("\tSUB %d remaining_processes loop UP\n", cpu_id);
+        // printf("\tSUB %d remaining_processes loop UP\n", cpu_id);
     }
     // printf("sub %d finished--------------------------\n", cpu_id);
     update_load_shm();
@@ -167,8 +179,39 @@ int main(int argc, char *argv[])
 void stall_sig(int signum)
 {
     (void)signum;
+    
+    processData pd;
+    ///////////////////
+    printf("\tSUB %d STALL SIGNALRECEIVED at %d\n", cpu_id, getClk());
+
+    if (!stalled && currProcess != NULL && currProcess->pid != -1)
+    {
+        currProcess->last_stopped = getClk();
+        kill(currProcess->pid, SIGSTOP);
+        currProcess->state = 'W';
+        currProcess->lState = STOP;
+        log_data(log_file, currProcess);
+    }
 
     stalled = 1;
+    while (msgrcv(my_msgq_id, &pd, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+        {
+            if (pd.mtype == 5)
+            {
+                receivingProcesses = 0;
+                break;
+            }
+            if (pd.mtype == 1)
+            {
+                PCB *pcb = malloc(sizeof(PCB));
+                *pcb = createPCB(pd);
+                if (perf.first_arrival == -1)
+                    perf.first_arrival = pcb->arrival;
+                // printf("iam cpu %d and i recieved proceess %d-----------------------\n", cpu_id, pcb->id);
+                enqueue(readyQueue, pcb);
+                
+            }
+        }
     stall_end_time = getClk() + 3;
     return;
 }
@@ -202,8 +245,7 @@ void steal_handler(int signum)
 void onProcessFinished(int signum)
 {
     (void)signum;
-    // processFinishedSignal = 1;
-    processFinishedSignal = 0;
+    // printf("cpu %d received process finished signal at time %d\n", cpu_id, getClk() + 1);
     int status;
     while (waitpid(currProcess->pid, &status, 0) == -1)
         if (errno != EINTR)
@@ -212,10 +254,12 @@ void onProcessFinished(int signum)
             break;
         }
 
-    currProcess->finish_time = getClk();
+    // Remaining time reaches zero during this tick; completion is at end of tick.
+    currProcess->finish_time = getClk() + 1;
     currProcess->remaining_time = 0;
     currProcess->state = 'F';
     currProcess->lState = FINISH;
+    context_switch_until = currProcess->finish_time + 1;
     log_data(log_file, currProcess);
 
     float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
@@ -248,10 +292,57 @@ void update_load_shm(void)
 {
     /* slots: cpu 1 → indices 0,1 ; cpu 2 → indices 2,3 */
     int base = (cpu_id == 1) ? 0 : 2;
-    int count = readyQueue->size;
-    int totalRT = total_remaining_time(readyQueue);
+    // int running_count = 0;
+    int running_rt = 0;
+
+    if (currProcess != NULL)
+    {
+        // running_count = 1;
+        // down(sem_id);
+        running_rt = currProcess->remaining_time;
+        // up(sem_id);
+        if (running_rt < 0)
+            running_rt = 0;
+    }
+
+    int count = readyQueue->size ;
+    int totalRT = total_remaining_time(readyQueue) + running_rt;
     down(load_sem_id);
     load_shm[base] = count;
     load_shm[base + 1] = totalRT;
     up(load_sem_id);
+}
+
+void dump_local_processes(int signum)
+{
+    (void)signum;
+
+    /* Refresh shared-memory load slots right before printing the snapshot. */
+    // update_load_shm();
+
+    printf("\n[SUB %d] -------- Threshold Snapshot --------\n", cpu_id);
+
+    if (currProcess != NULL)
+    {
+        int running_rt = *shmRT_addr;
+        if (running_rt < 0)
+            running_rt = 0;
+        printf("[SUB %d] RUNNING: id=%d, remaining=%d\n", cpu_id, currProcess->id, running_rt);
+    }
+    else
+        printf("[SUB %d] RUNNING: none\n", cpu_id);
+
+    if (readyQueue == NULL || isEmpty(readyQueue))
+    {
+        printf("[SUB %d] READY QUEUE: empty\n", cpu_id);
+        return;
+    }
+
+    printf("[SUB %d] READY QUEUE:\n", cpu_id);
+    Node *it = readyQueue->front;
+    while (it != NULL)
+    {
+        printf("[SUB %d]   id=%d, remaining=%d\n", cpu_id, it->pcb->id, it->pcb->remaining_time);
+        it = it->next;
+    }
 }
