@@ -18,6 +18,7 @@
 #define MSGQ_RESPONSE_PROJ 77
 #define LOAD_SHM_PROJ 80
 #define LOAD_SEM_PROJ 85
+#define THRESHOLD_SEM_PROJ 86
 
 #define Tick_semaphore1 81
 #define Tick_semaphore2 82
@@ -278,6 +279,14 @@ int attach_2cpu_ipcs(int cpu_id)
     if (load_sem_id == -1)
     {
         perror("Error in retrieve sem");
+        exit(-1);
+    }
+
+    key_t thresholdSemKey = ftok(KEYFILE_PATH, THRESHOLD_SEM_PROJ);
+    threshold_sem_id = semget(thresholdSemKey, 1, 0666);
+    if (threshold_sem_id == -1)
+    {
+        perror("Error in retrieve threshold sem");
         exit(-1);
     }
 

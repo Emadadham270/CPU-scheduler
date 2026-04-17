@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 extern int load_sem_id;
+extern int threshold_sem_id;
 extern int cpu_id;
 extern int sem_id;
 extern int shmRT_id;

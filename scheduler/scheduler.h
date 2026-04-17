@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 extern int load_sem_id;
+extern int threshold_sem_id;
 extern int msgq_id;
 extern int sem_id;
 extern int shmRT_id, load_shm_id;

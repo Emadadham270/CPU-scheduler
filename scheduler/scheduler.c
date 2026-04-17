@@ -2,6 +2,7 @@
 #include "../headers.h"
 
 int load_sem_id;
+int threshold_sem_id = -1;
 int msgq_id;
 int sem_id;
 int receivingProcesses = 1;
@@ -93,6 +94,33 @@ int main(int argc, char *argv[])
   int last_tick = -1;
   int s=0;
   int wait_sub=0;
+
+  if (type == 3)
+  {
+      subCpu_created = 1;
+      if (create_2cpu_ipcs())
+          exit(-1);
+
+      for (int i = 1; i <= 2; i++)
+      {
+          pid_t pid = fork();
+          if (pid == -1)
+          {
+              perror("fork failed");
+              exit(1);
+          }
+          if (pid == 0)
+          {
+              char cpu_id_str[16];
+              snprintf(cpu_id_str, sizeof(cpu_id_str), "%d", i);
+              execl("../outFiles/sub_scheduler.out", "sub_scheduler.out", cpu_id_str, (char *)NULL);
+              perror("execl sub_scheduler failed");
+              _exit(1);
+          }
+          idArr[i - 1] = pid;
+      }
+  }
+
   while (!isEmpty(readyQueue) || receivingProcesses || currProcess||wait_sub)
   {
 
@@ -104,6 +132,13 @@ int main(int argc, char *argv[])
     // its remaining time before we potentially preempt it.
 
     last_tick = now;
+
+    if (type == 3 && subCpu_created)
+    {
+      union Semun gate;
+      gate.val = 0;
+      semctl(threshold_sem_id, 0, SETVAL, gate);
+    }
 
     // 1. Handle finished process (before algo, so we don't preempt a dead process)
     if (currProcess != NULL && processFinishedSignal)
@@ -209,8 +244,19 @@ int main(int argc, char *argv[])
   // Wait for sub-schedulers to finish before cleanup
   if (subCpu_created)
   {
+    // Prevent deadlock: provide one last round of permits so any sub-scheduler 
+    // that reached the next tick but was abandoned by main can evaluate its condition and exit cleanly.
+    union Semun gate;
+    gate.val = 2;
+    semctl(threshold_sem_id, 0, SETVAL, gate);
+    
+    printf("\tMAIN: waiting for sub-scheduler 1 (PID: %d)...\n", idArr[0]);
     waitpid(idArr[0], NULL, 0);
+    printf("\tMAIN: sub-scheduler 1 exited!\n");
+    
+    printf("\tMAIN: waiting for sub-scheduler 2 (PID: %d)...\n", idArr[1]);
     waitpid(idArr[1], NULL, 0);
+    printf("\tMAIN: sub-scheduler 2 exited!\n");
   }
   // upon termination release the clock resources.
   msgctl(msgq_id, IPC_RMID, NULL);
