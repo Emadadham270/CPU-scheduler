@@ -1,3 +1,17 @@
-#id arrival runtime priority
-1   1   4   1
-2   1   4   1
+1   1   10  5
+2   2   3   2
+3   5   2   1
+4   5   2   2
+
+FCFS
+RR
+HPF
+2 CPU
+
+
+ gen
+ sched 
+ process 
+ logs
+ ds 
+
