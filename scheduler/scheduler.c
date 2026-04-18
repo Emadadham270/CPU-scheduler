@@ -18,6 +18,8 @@ int shmRT_id,load_shm_id;
 int subCpu_created=0;
 int idArr[2];
 int N_time=0;
+int context_switch_until=-1;
+int processStopped=0;
 perfVars perf;
 void onProcessFinished(int signum)
 {
@@ -170,6 +172,7 @@ int main(int argc, char *argv[])
       currProcess->finish_time = getClk();
       currProcess->remaining_time = 0;
       currProcess->state = 'F';
+      context_switch_until = currProcess->finish_time + 1;
 
       currProcess->remaining_time = *shmRT_addr;
       // log data to scheduler.log
@@ -196,8 +199,9 @@ int main(int argc, char *argv[])
       currProcess = NULL;
       next_preemtion_time = -1;
     }
-    else if (!processFinishedSignal)
+     if (context_switch_until == -1 || now >= context_switch_until)
     {
+      context_switch_until = -1;
 
       /* One-time synchronization for 2-CPU FCFS:
        * wait within the first active tick so arrivals at time=1 are visible
@@ -220,7 +224,7 @@ int main(int argc, char *argv[])
         {
           //receive the first process before the algo logic then receive after the logic
           if(!s)
-            if (!receiveProcesses(readyQueue,process,type))
+            if (!receiveFirstProcess(readyQueue,process,type))
               s=1;
           RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
 
@@ -255,8 +259,11 @@ int main(int argc, char *argv[])
        * would let it consume the credit instantly on the same tick it was forked,
        * causing it to run twice in one tick. */
 
-      if (currProcess != NULL)
+      if(processStopped)
+        processStopped=0;
+      else if (currProcess != NULL)
       {
+        printf("entered up \n");
         union Semun s;
         s.val = 0;
         semctl(sem_id, 0, SETVAL, s);
