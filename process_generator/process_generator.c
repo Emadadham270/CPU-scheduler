@@ -153,6 +153,15 @@ int main(int argc, char *argv[])
                     perror("Error in msgsnd");
                 }
             }
+
+            processData tick_msg;
+            tick_msg.mtype = 2; // Tick Sync
+            tick_msg.arrival = currentTime;
+            tick_msg.runtime = 0;
+            if (msgsnd(msgq_id, &tick_msg, sizeof(processData) - sizeof(long), 0) == -1)
+            {
+                perror("Error in msgsnd tick");
+            }
         }
         lastTime = currentTime;
     }

@@ -196,7 +196,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
 
         /* Check if the quantum has expired */
 
-        if(isEmpty(readyQueue))
+        if((isEmpty(readyQueue)|| readyQueue->front->pcb->arrival == getClk()) && getClk() >= *next_preemtion_time )
         {
             *next_preemtion_time = getClk() + q;
             return;

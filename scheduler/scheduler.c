@@ -201,43 +201,41 @@ int main(int argc, char *argv[])
     {
       context_switch_until = -1;
 
-      /* One-time synchronization for 2-CPU FCFS:
-       * wait within the first active tick so arrivals at time=1 are visible
-       * before routing to sub-schedulers. */
-      if (type == 3 && !first_arrival_sync_done && now > 0)
-      {
-        while (getClk() == now)
-        {
-          int got_any = 0;
-          while (!receiveProcesses(readyQueue,process,type))
-            got_any = 1;
-
-          if (got_any)
-            break;
-        }
-        first_arrival_sync_done = 1;
+      // 2. Receive new arrivals synchronously with process_generator
+      if (receivingProcesses) {
+          while (1) {
+              processData msg;
+              if (msgrcv(msgq_id, &msg, sizeof(processData) - sizeof(long), -5, 0) != -1) {
+                  if (msg.mtype == 1) {
+                      struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
+                      *pcb = createPCB(msg);
+                      if (perf.first_arrival == -1) perf.first_arrival = pcb->arrival;
+                      if (type == 2) enqueue_priority(readyQueue, pcb);
+                      else enqueue(readyQueue, pcb);
+                  } else if (msg.mtype == 2) {
+                      if (msg.arrival >= now) {
+                          break;
+                      }
+                  } else if (msg.mtype == 5) {
+                      receivingProcesses = 0;
+                      break;
+                  }
+              } else {
+                  if (errno != EINTR) {
+                      perror("msgrcv error");
+                      break;
+                  }
+              }
+          }
       }
-
-      if (now > 0 && type==1)
-        {
-          //receive the first process before the algo logic then receive after the logic
-          if(!s)
-            if (!receiveFirstProcess(readyQueue,process,type))
-              s=1;
-          RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
-
-        }
-
-      // 2. Receive new arrivals
-      while (!receiveProcesses(readyQueue,process,type));
 
       // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
       if (now > 0 )
         switch (type)
         {
-        // case 1:
-        //   RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
-        //   break;
+        case 1:
+          RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
+          break;
         case 2:
           HPF_algo(readyQueue, &currProcess, log_file);
           break;
