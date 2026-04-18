@@ -1,0 +1,23 @@
+2 CPUS:
+    test1
+        #id arrival runtime priority
+        1   1   20  1
+        2   1   5   1
+
+        sched1:
+        #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+        At	time	1	process	1	started	arr	1	total	20	remain	20	wait	0
+        At	time	21	process	1	finished	arr	1	total	20	remain	0	wait	0	TA	20	WTA	1.00
+
+
+        sched2:
+        #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+        At	time	1	process	2	started	arr	1	total	5	remain	5	wait	0
+        At	time	6	process	2	finished	arr	1	total	5	remain	0	wait	0	TA	5	WTA	1.00
+
+    test2:
+        #id arrival runtime priority
+        1   1   20  1
+        2   2   5   1
+
+    
