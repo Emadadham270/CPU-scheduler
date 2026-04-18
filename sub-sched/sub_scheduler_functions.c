@@ -159,7 +159,7 @@ void log_data(FILE *log_file, PCB *pcb)
 {
     char stateStr[100];
     int finishFlag = 0;
-    int log_time = current_tick_time;
+    int log_time = getClk();
 
     // Special case for 2 CPU's
     if(pcb->lState == STOLEN) {
