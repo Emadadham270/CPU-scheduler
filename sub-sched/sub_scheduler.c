@@ -5,6 +5,7 @@
 // function predefinitions
 void stall_sig(int signum); // This function needs a global variable stalled, so it can't be in sub_scheduler.h
 void onProcessFinished(int signum);
+void finishLogic(void);
 void update_load_shm(void);
 static processData pcb_to_processData(PCB *pcb, long mtype);
 void steal_handler(int signum);
@@ -123,13 +124,36 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if(processFinished)
-        finishLogic();
+        if (processFinished)
+            finishLogic();
+
         /* Threshold gate: consume one permit for this tick.
-         * Main posts permits only after finishing threshold decision. */
-        down(threshold_sem_id);
+         * Skip time 0 so we don't spend tick-1 permits on a stale tick-0 frame. */
+        if (now > 0)
+            down(threshold_sem_id);
         last_tick = now;
 
+        /* Drain message queue AGAIN after the threshold gate so we pick up
+         * processes the main scheduler just routed during this tick. */
+        {
+            processData pd2;
+            while (msgrcv(my_msgq_id, &pd2, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+            {
+                if (pd2.mtype == 5)
+                {
+                    receivingProcesses = 0;
+                    break;
+                }
+                if (pd2.mtype == 1)
+                {
+                    PCB *pcb = malloc(sizeof(PCB));
+                    *pcb = createPCB(pd2);
+                    if (perf.first_arrival == -1)
+                        perf.first_arrival = pcb->arrival;
+                    enqueue(readyQueue, pcb);
+                }
+            }
+        }
 
         if (stalled && now >= stall_end_time)
         {
@@ -198,14 +222,14 @@ int main(int argc, char *argv[])
 void stall_sig(int signum)
 {
     (void)signum;
-    
+    int time_now = getClk();
     processData pd;
     ///////////////////
     printf("\tSUB %d STALL SIGNALRECEIVED at %d\n", cpu_id, getClk());
 
     if (!stalled && currProcess != NULL && currProcess->pid != -1)
     {
-        currProcess->last_stopped = current_tick_time;
+        currProcess->last_stopped = time_now;
         kill(currProcess->pid, SIGSTOP);
         currProcess->state = 'W';
         currProcess->remaining_time=*shmRT_addr;
@@ -232,7 +256,7 @@ void stall_sig(int signum)
                 
             }
         }
-    stall_end_time = current_tick_time + 3;
+    stall_end_time = time_now + 3;
     return;
 }
 
@@ -281,6 +305,7 @@ void steal_handler(int signum)
 void finishLogic()
 {
     int status;
+    
     while (waitpid(currProcess->pid, &status, 0) == -1)
         if (errno != EINTR)
         {
