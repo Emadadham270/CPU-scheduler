@@ -9,10 +9,8 @@ void finishLogic(void);
 void update_load_shm(void);
 static processData pcb_to_processData(PCB *pcb, long mtype);
 void steal_handler(int signum);
-void dump_local_processes(int signum);
 static int get_running_remaining_time(void);
 static int try_down_nonblocking(int sem);
-static void refresh_load_shm_nonblocking(void);
 
 // global vars
 
@@ -41,9 +39,6 @@ Queue *readyQueue;
 int receivingProcesses = 1;
 struct PCB *currProcess = NULL;
 int context_switch_until = -1;
-int dispatched_this_tick = 0;
-int pass = 0;
-
 int processFinished=0;
 
 // logs
@@ -86,11 +81,9 @@ int main(int argc, char *argv[])
     int last_tick = -1;
     int base2nd = (cpu_id == 1) ? 2 : 0; // don't terminate untill all the processes are done
     
-    // printf("\tSUB %d remaining_processes init DOWN\n", cpu_id);
     down(load_sem_id);
     int remaining_processes = load_shm[base2nd + 1];
     up(load_sem_id);
-    // printf("\tSUB %d remaining_processes init UP\n", cpu_id);
     while (!isEmpty(readyQueue) || receivingProcesses || currProcess || remaining_processes)
     {
         // Always drain the message queue immediately (not just once per tick)
@@ -108,10 +101,7 @@ int main(int argc, char *argv[])
                 *pcb = createPCB(pd);
                 if (perf.first_arrival == -1)
                     perf.first_arrival = pcb->arrival;
-                // printf("iam cpu %d and i recieved proceess %d-----------------------\n", cpu_id, pcb->id);
                 enqueue(readyQueue, pcb);
-                // if (!stalled)
-                //     FCFS_algo(readyQueue, &currProcess, log_file);
             }
         }
 
@@ -135,25 +125,25 @@ int main(int argc, char *argv[])
 
         /* Drain message queue AGAIN after the threshold gate so we pick up
          * processes the main scheduler just routed during this tick. */
+        
+        processData pd2;
+        while (msgrcv(my_msgq_id, &pd2, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
         {
-            processData pd2;
-            while (msgrcv(my_msgq_id, &pd2, sizeof(processData) - sizeof(long), 0, IPC_NOWAIT) != -1)
+            if (pd2.mtype == 5)
             {
-                if (pd2.mtype == 5)
-                {
-                    receivingProcesses = 0;
-                    break;
-                }
-                if (pd2.mtype == 1)
-                {
-                    PCB *pcb = malloc(sizeof(PCB));
-                    *pcb = createPCB(pd2);
-                    if (perf.first_arrival == -1)
-                        perf.first_arrival = pcb->arrival;
-                    enqueue(readyQueue, pcb);
-                }
+                receivingProcesses = 0;
+                break;
+            }
+            if (pd2.mtype == 1)
+            {
+                PCB *pcb = malloc(sizeof(PCB));
+                *pcb = createPCB(pd2);
+                if (perf.first_arrival == -1)
+                    perf.first_arrival = pcb->arrival;
+                enqueue(readyQueue, pcb);
             }
         }
+        
 
         if (stalled && now >= stall_end_time)
         {
@@ -170,10 +160,7 @@ int main(int argc, char *argv[])
             }
         }
 
-      // print the while variables
-    //   printf("cpu %d at time %d: currProcess=%d, readyQueue_size=%d, receivingProcesses=%d, stalled=%d\n",
-    //          cpu_id, now, currProcess ? currProcess->id : -1, readyQueue->size, receivingProcesses, stalled);
-
+ 
         if (!currProcess && !isEmpty(readyQueue) && !stalled &&
             (context_switch_until == -1 || now >= context_switch_until) && now > 0)
         {
@@ -191,13 +178,10 @@ int main(int argc, char *argv[])
             up(sem_id);
         }
         update_load_shm();
-        // printf("\tSUB %d remaining_processes loop DOWN\n", cpu_id);
         down(load_sem_id);
         remaining_processes = load_shm[base2nd + 1];
         up(load_sem_id);
-        // printf("\tSUB %d remaining_processes loop UP\n", cpu_id);
     }
-    printf("\tSUB %d finished main loop! Exiting cleanly.\n", cpu_id);
     update_load_shm();
     
     processData ack;
@@ -209,7 +193,7 @@ int main(int argc, char *argv[])
     write_perf(perf, perf_file);
     fclose(log_file);
     fclose(perf_file);
-
+    
     shmdt(shmRT_addr);
     shmdt(load_shm);
     semctl(sem_id, 0, IPC_RMID);
@@ -225,7 +209,6 @@ void stall_sig(int signum)
     int time_now = getClk();
     processData pd;
     ///////////////////
-    printf("\tSUB %d STALL SIGNALRECEIVED at %d\n", cpu_id, getClk());
 
     if (!stalled && currProcess != NULL && currProcess->pid != -1)
     {
@@ -251,7 +234,6 @@ void stall_sig(int signum)
                 *pcb = createPCB(pd);
                 if (perf.first_arrival == -1)
                     perf.first_arrival = pcb->arrival;
-                // printf("iam cpu %d and i recieved proceess %d-----------------------\n", cpu_id, pcb->id);
                 enqueue(readyQueue, pcb);
                 
             }
@@ -340,7 +322,6 @@ void finishLogic()
 void onProcessFinished(int signum)
 {
     (void)signum;
-    // printf("cpu %d received process finished signal at time %d\n", cpu_id, getClk() + 1);
     processFinished=1;
 }
 
@@ -406,62 +387,5 @@ static int try_down_nonblocking(int sem)
     return 0;
 }
 
-static void refresh_load_shm_nonblocking(void)
-{
-    if (readyQueue == NULL || load_shm == NULL || (long)load_shm == -1)
-        return;
 
-    int base = (cpu_id == 1) ? 0 : 2;
-    int running_rt = 0;
-    if (currProcess != NULL)
-    {
-        running_rt = get_running_remaining_time();
-        if (running_rt < 0)
-            running_rt = 0;
-    }
 
-    int count = readyQueue->size;
-    int totalRT = total_remaining_time(readyQueue) + running_rt;
-
-    /* Signal handlers must never block while trying to refresh counters. */
-    if (try_down_nonblocking(load_sem_id) == 0)
-    {
-        load_shm[base] = count;
-        load_shm[base + 1] = totalRT;
-        up(load_sem_id);
-    }
-}
-
-void dump_local_processes(int signum)
-{
-    (void)signum;
-
-    /* Best-effort refresh; never block in this signal handler. */
-    refresh_load_shm_nonblocking();
-
-    printf("\n[SUB %d] -------- Threshold Snapshot --------\n", cpu_id);
-
-    if (currProcess != NULL)
-    {
-        int running_rt = get_running_remaining_time();
-        if (running_rt < 0)
-            running_rt = 0;
-        printf("[SUB %d] RUNNING: id=%d, remaining=%d\n", cpu_id, currProcess->id, running_rt);
-    }
-    else
-        printf("[SUB %d] RUNNING: none\n", cpu_id);
-
-    if (readyQueue == NULL || isEmpty(readyQueue))
-    {
-        printf("[SUB %d] READY QUEUE: empty\n", cpu_id);
-        return;
-    }
-
-    printf("[SUB %d] READY QUEUE:\n", cpu_id);
-    Node *it = readyQueue->front;
-    while (it != NULL)
-    {
-        printf("[SUB %d]   id=%d, remaining=%d\n", cpu_id, it->pcb->id, it->pcb->remaining_time);
-        it = it->next;
-    }
-}

@@ -122,28 +122,18 @@ void create_log_files(FILE **log_file, FILE **perf_file, int which)
 
 void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, FILE *log_file)
 {
-    // printf("c %d at time %d---------innnnnn--------------\n",cpu_id,getClk());
-    //if (*currProcess || isEmpty(readyQueue))
-        // printf("c %d at time %d---it is intialized ?----------\n",cpu_id,getClk());
+   
     if (*currProcess == NULL && !isEmpty(readyQueue))
     {
-        // printf("c %d at time %d---------innnnnn22222222--------------\n",cpu_id,getClk());
-        int size = readyQueue->size;
-        // printf("we got the point \n");
-        // printf("cpu %d , size %d\n", cpu_id, size);
+        
         *currProcess = dequeue(readyQueue);
-
         int ready_count = readyQueue->size;
         int ready_total_rt = total_remaining_time(readyQueue);
-        // int running_count = 1;
         int running_rt = (*currProcess)->remaining_time;
-
-        // size = ready_count + running_count;
         int totalRT = ready_total_rt + running_rt;
-        // printf("cpu %d , size %d , RT %d\n", cpu_id, size, totalRT);
-        // printf("we out of the point \n");
-
+        
         write_load_shm(load_shm, cpu_id, ready_count, totalRT);
+
         runProcess(*currProcess, log_file);
     }
     
@@ -189,10 +179,10 @@ void log_data(FILE *log_file, PCB *pcb)
         break;
     }
 
-        fprintf(log_file,
-            "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d",
-            log_time, pcb->id, stateStr, pcb->arrival, pcb->runtime,
-            pcb->remaining_time, pcb->waiting_time);
+    fprintf(log_file,
+        "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d",
+        log_time, pcb->id, stateStr, pcb->arrival, pcb->runtime,
+        pcb->remaining_time, pcb->waiting_time);
 
     if (finishFlag)
     {
@@ -200,6 +190,7 @@ void log_data(FILE *log_file, PCB *pcb)
         float WTA = ((float)TA) / pcb->runtime;
         fprintf(log_file, "\tTA\t%d\tWTA\t%.2f", TA, WTA);
     }
+
     fprintf(log_file, "\n");
 }
 
@@ -229,16 +220,7 @@ void write_perf(struct PerfVars perf, FILE *perf_file)
     fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
 }
 
-int send_process_msg(int msgq_id, processData *p, long mtype)
-{
-    p->mtype = mtype;
-    if (msgsnd(msgq_id, p, sizeof(processData) - sizeof(long), 0) == -1)
-    {
-        perror("Error in send_process_msg");
-        return -1;
-    }
-    return 0;
-}
+
 
 int attach_2cpu_ipcs(int cpu_id)
 {
@@ -290,14 +272,12 @@ int attach_2cpu_ipcs(int cpu_id)
         exit(-1);
     }
 
-    
-
     return 0;
 }
 
 void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT)
 {
-    // printf("\tSUB %d: write_load_shm DOWN\n", cpu_id);
+    
     down(load_sem_id);
     if (cpu_id == 1)
     {
@@ -310,7 +290,7 @@ void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT)
         load_shm_addr[LOAD_SHM_SLOT_TOTALRT2] = totalRT;
     }
     up(load_sem_id);
-    // printf("\tSUB %d: write_load_shm UP\n", cpu_id);
+
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)

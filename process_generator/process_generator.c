@@ -135,7 +135,6 @@ int main(int argc, char *argv[])
     //  To get time use this
     //  int x = getClk();
     //  printf("current time is %d\n", x);
-    //  TODO Generation Main Loop
     //  5. Create a data structure for processes and provide it with its parameters.
     //  6. Send the information to the scheduler at the appropriate time.
 
@@ -146,7 +145,6 @@ int main(int argc, char *argv[])
 
         if (currentTime != lastTime)
         {
-            // printf("Current time: %d\n", currentTime);
             while (!pg_isEmpty(q) && pg_peek(q).arrival <= currentTime)
             {
                 processData p = pg_dequeue(q);

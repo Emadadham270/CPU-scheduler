@@ -101,6 +101,5 @@ int main(void)
         return 1;
     }
 
-    printf("process.c integration test: PASS\n");
     return 0;
 }

@@ -141,9 +141,7 @@ int main(int argc, char *argv[])
     int now = getClk();
     if (now == last_tick)
         continue; // spin until next tick
-    printf("===========================we are at time step %d ==========================\n", now);
-    // Delay 5ms to allow running process to detect the clock change and print
-    // its remaining time before we potentially preempt it.
+    
 
     last_tick = now;
 
@@ -250,20 +248,10 @@ int main(int argc, char *argv[])
           break;
         }
 
-      /* Tick gate: signal the running process to execute exactly one unit of work.
-       * We reset the semaphore to 0 first to discard any stale credits that may
-       * have accumulated (e.g. from a previous process), then post once so the
-       * process unblocks, decrements its remaining time, and blocks again.
-       * We skip this if we just dispatched this tick (dispatched_this_tick=1)
-       * because the process hasn't reached down() yet — firing up() too early
-       * would let it consume the credit instantly on the same tick it was forked,
-       * causing it to run twice in one tick. */
-
       if(processStopped)
         processStopped=0;
       else if (currProcess != NULL)
       {
-        printf("entered up \n");
         union Semun s;
         s.val = 0;
         semctl(sem_id, 0, SETVAL, s);
@@ -295,13 +283,9 @@ int main(int argc, char *argv[])
     gate.val = 2;
     semctl(threshold_sem_id, 0, SETVAL, gate);
     
-    printf("\tMAIN: waiting for sub-scheduler 1 (PID: %d)...\n", idArr[0]);
     waitpid(idArr[0], NULL, 0);
-    printf("\tMAIN: sub-scheduler 1 exited!\n");
     
-    printf("\tMAIN: waiting for sub-scheduler 2 (PID: %d)...\n", idArr[1]);
     waitpid(idArr[1], NULL, 0);
-    printf("\tMAIN: sub-scheduler 2 exited!\n");
   }
   // upon termination release the clock resources.
   msgctl(msgq_id, IPC_RMID, NULL);

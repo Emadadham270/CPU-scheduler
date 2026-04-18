@@ -18,7 +18,6 @@ extern int *shmRT_addr;
 extern int my_msgq_id;
 extern int msgq_resp_id;
 extern int *load_shm;
-extern int pass;
 extern int current_tick_time;
 
 struct PCB createPCB(processData p);
@@ -32,7 +31,8 @@ void write_perf(struct PerfVars perf, FILE *perf_file);
 void up(int sem);
 void down(int sem);
 
-int send_process_msg(int msgq_id, processData *p, long mtype);
+
+
 int attach_2cpu_ipcs(int cpu_id);
 void write_load_shm(int *load_shm_addr, int cpu_id, int count, int totalRT);
 void create_ipcs(int cpu_id);
