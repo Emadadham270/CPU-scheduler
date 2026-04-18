@@ -220,23 +220,23 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             /* Preempt: stop the current process and put it back in the queue */
             (*currProcess)->lState = STOP;
             (*currProcess)->remaining_time = *shmRT_addr;
+            kill((*currProcess)->pid, SIGSTOP);
 
             log_data(log_file, *currProcess);
             (*currProcess)->last_stopped = getClk();
-            kill((*currProcess)->pid, SIGSTOP);
 
             (*currProcess)->remaining_time = *shmRT_addr;
             (*currProcess)->state = 'W';
 
             printf("process %d stopped \n", (*currProcess)->pid);
             enqueue(readyQueue, (*currProcess));
-
+            processStopped=1;
             wait_N_secs(1, 1);
+            *next_preemtion_time = getClk() + q;
 
             /* Pick the next process from the queue */
             *currProcess = dequeue(readyQueue);
             runProcess(*currProcess, log_file);
-            *next_preemtion_time = getClk() + q;
             return;
         }
     }
@@ -747,6 +747,35 @@ void check_threshold(int M,int N)
 
 }
 
+int receiveFirstProcess(Queue *readyQueue,processData process,int type)
+{
+    if (msgrcv(msgq_id, &process, sizeof(processData) - sizeof(long), 0,0) != -1)
+      {
+
+        if (process.mtype == 5)
+        {
+          receivingProcesses = 0;
+          return -1;
+        }
+
+        struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
+        *pcb = createPCB(process);
+
+
+        // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
+        if(perf.first_arrival == -1) {
+          perf.first_arrival = pcb->arrival;
+        }
+        // printf("recieved process %d\n", pcb->id);
+        
+        enqueue(readyQueue, pcb);
+        
+        printf("i recieved process %d at time %d\n",pcb->id,getClk());
+          return 0;
+      }
+      else return -1;
+}
+
 int receiveProcesses(Queue *readyQueue,processData process,int type)
 {
     if (msgrcv(msgq_id, &process, sizeof(processData) - sizeof(long), 0,
@@ -776,6 +805,7 @@ int receiveProcesses(Queue *readyQueue,processData process,int type)
         {
             enqueue(readyQueue, pcb);
         }
+        //printf("i recieved process %d at time %d\n",pcb->id,getClk());
           return 0;
       }
       else return -1;

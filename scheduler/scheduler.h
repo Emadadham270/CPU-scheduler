@@ -20,6 +20,9 @@ extern int subCpu_created;
 extern int receivingProcesses;
 extern int idArr[2];
 extern int N_time;
+extern int processStopped;
+
+
 extern perfVars perf;
 processData receive(int msgq_id);
 struct PCB createPCB(processData p);
@@ -47,6 +50,7 @@ int select_cpu();
 int send_process_msg(int msgq_id, processData *p, long mtype);
 processData pcb_to_processData(PCB *pcb);
 int receiveProcesses(Queue *readyQueue, processData p, int type);
+int receiveFirstProcess(Queue *readyQueue,processData process,int type);
 
 void read_all_load_shm(int *load_shm_addr,
                        int *count1, int *totalRT1,
