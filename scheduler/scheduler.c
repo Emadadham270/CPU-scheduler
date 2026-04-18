@@ -90,11 +90,11 @@ int main(int argc, char *argv[])
   create_log_files(&log_file, &perf_file);
   write_comment_line(log_file);
 
-  initClk();
   int last_tick = -1;
   int s=0;
   int wait_sub=0;
   int term_sent_to_subs = 0;
+  int first_arrival_sync_done = 0;
 
   if (type == 3)
   {
@@ -121,6 +121,8 @@ int main(int argc, char *argv[])
           idArr[i - 1] = pid;
       }
   }
+
+  initClk();
 
   int subs_terminated = 0;
   while (!isEmpty(readyQueue) || receivingProcesses || currProcess || wait_sub || (type == 3 && subs_terminated < 2))
@@ -196,6 +198,23 @@ int main(int argc, char *argv[])
     }
     else if (!processFinishedSignal)
     {
+
+      /* One-time synchronization for 2-CPU FCFS:
+       * wait within the first active tick so arrivals at time=1 are visible
+       * before routing to sub-schedulers. */
+      if (type == 3 && !first_arrival_sync_done && now > 0)
+      {
+        while (getClk() == now)
+        {
+          int got_any = 0;
+          while (!receiveProcesses(readyQueue,process,type))
+            got_any = 1;
+
+          if (got_any)
+            break;
+        }
+        first_arrival_sync_done = 1;
+      }
 
       if (now > 0 && type==1)
         {
