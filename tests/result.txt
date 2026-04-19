@@ -1,0 +1,405 @@
+c1_hpf.txt
+    #id	arrival	runtime	priority
+    1	1	8	4
+    2	3	4	2
+    3	5	2	1
+    4	7	3	3
+    5	10	1	0
+
+
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	1	started	arr	1	total	8	remain	8	wait	0
+    At	time	3	process	1	stopped	arr	1	total	8	remain	6	wait	0
+    At	time	4	process	2	started	arr	3	total	4	remain	4	wait	1
+    At	time	5	process	2	stopped	arr	3	total	4	remain	3	wait	1
+    At	time	6	process	3	started	arr	5	total	2	remain	2	wait	1
+    At	time	8	process	3	finished	arr	5	total	2	remain	0	wait	1	TA	3	WTA	1.50
+    At	time	9	process	2	resumed	arr	3	total	4	remain	3	wait	5
+    At	time	10	process	2	stopped	arr	3	total	4	remain	2	wait	5
+    At	time	11	process	5	started	arr	10	total	1	remain	1	wait	1
+    At	time	12	process	5	finished	arr	10	total	1	remain	0	wait	1	TA	2	WTA	2.00
+    At	time	13	process	2	resumed	arr	3	total	4	remain	2	wait	8
+    At	time	15	process	2	finished	arr	3	total	4	remain	0	wait	8	TA	12	WTA	3.00
+    At	time	16	process	4	started	arr	7	total	3	remain	3	wait	9
+    At	time	19	process	4	finished	arr	7	total	3	remain	0	wait	9	TA	12	WTA	4.00
+    At	time	20	process	1	resumed	arr	1	total	8	remain	6	wait	17
+    At	time	26	process	1	finished	arr	1	total	8	remain	0	wait	17	TA	25	WTA	3.12
+
+    CPU utilization = 72.00%
+    Avg WTA = 2.72
+    Avg Waiting = 7.20
+    Std WTA = 0.88
+
+tc2_fcfs_n_4_m_4.txt
+    #id	arrival	runtime	priority
+    1	1	9	1
+    2	1	4	2
+    3	2	8	3
+    4	3	3	4
+    5	4	6	5
+    6	6	2	6
+
+    sced1:
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	1	started	arr	1	total	9	remain	9	wait	0
+    At	time	4	process	5	was	stolen
+    At	time	4	process	1	stopped	arr	1	total	9	remain	6	wait	0
+    At	time	7	process	1	resumed	arr	1	total	9	remain	6	wait	3
+    At	time	8	process	6	was	stolen
+    At	time	8	process	1	stopped	arr	1	total	9	remain	5	wait	3
+    At	time	11	process	1	resumed	arr	1	total	9	remain	5	wait	6
+    At	time	16	process	1	finished	arr	1	total	9	remain	0	wait	6	TA	15	WTA	1.67
+    At	time	17	process	3	started	arr	2	total	8	remain	8	wait	15
+    At	time	25	process	3	finished	arr	2	total	8	remain	0	wait	15	TA	23	WTA	2.88
+
+    CPU utilization = 70.83%
+    Avg WTA = 2.27
+    Avg Waiting = 10.50
+    Std WTA = 0.85
+
+    sced2:
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	2	started	arr	1	total	4	remain	4	wait	0
+    At	time	4	process	2	stopped	arr	1	total	4	remain	1	wait	0
+    At	time	7	process	2	resumed	arr	1	total	4	remain	1	wait	3
+    At	time	8	process	2	finished	arr	1	total	4	remain	0	wait	3	TA	7	WTA	1.75
+    At	time	11	process	4	started	arr	3	total	3	remain	3	wait	8
+    At	time	14	process	4	finished	arr	3	total	3	remain	0	wait	8	TA	11	WTA	3.67
+    At	time	15	process	5	started	arr	4	total	6	remain	6	wait	11
+    At	time	21	process	5	finished	arr	4	total	6	remain	0	wait	11	TA	17	WTA	2.83
+    At	time	22	process	6	started	arr	6	total	2	remain	2	wait	16
+    At	time	24	process	6	finished	arr	6	total	2	remain	0	wait	16	TA	18	WTA	9.00
+
+    CPU utilization = 65.22%
+    Avg WTA = 4.31
+    Avg Waiting = 9.50
+    Std WTA = 3.22
+
+tc3_fcfs_n_4_m_2.txt
+
+    #id	arrival	runtime	priority
+    1	1	10	0
+    2	2	3	8
+    3	2	10	1
+    4	3	6	4
+    5	4	1	3
+    6	4	3	9
+    7	4	4	3
+
+    shed1:
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	1	started	arr	1	total	10	remain	10	wait	0
+    At	time	11	process	1	finished	arr	1	total	10	remain	0	wait	0	TA	10	WTA	1.00
+    At	time	12	process	2	started	arr	2	total	3	remain	3	wait	10
+    At	time	15	process	2	finished	arr	2	total	3	remain	0	wait	10	TA	13	WTA	4.33
+    At	time	16	process	5	started	arr	4	total	1	remain	1	wait	12
+    At	time	17	process	5	finished	arr	4	total	1	remain	0	wait	12	TA	13	WTA	13.00
+    At	time	18	process	7	started	arr	4	total	4	remain	4	wait	14
+    At	time	22	process	7	finished	arr	4	total	4	remain	0	wait	14	TA	18	WTA	4.50
+
+    CPU utilization = 85.71%
+    Avg WTA = 5.71
+    Avg Waiting = 9.00
+    Std WTA = 5.12
+
+    shed2:
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	2	process	3	started	arr	2	total	10	remain	10	wait	0
+    At	time	12	process	3	finished	arr	2	total	10	remain	0	wait	0	TA	10	WTA	1.00
+    At	time	13	process	4	started	arr	3	total	6	remain	6	wait	10
+    At	time	19	process	4	finished	arr	3	total	6	remain	0	wait	10	TA	16	WTA	2.67
+    At	time	20	process	6	started	arr	4	total	3	remain	3	wait	16
+    At	time	23	process	6	finished	arr	4	total	3	remain	0	wait	16	TA	19	WTA	6.33
+
+    CPU utilization = 90.48%
+    Avg WTA = 3.33
+    Avg Waiting = 8.67
+    Std WTA = 2.73
+
+tc4_rr2.txt
+    #id arrival runtime priority
+    1	1	12	3
+    2	2	8	8
+    3	12	9	3
+    4	16	5	5
+    5	18	8	4
+    6	22	10	9
+    7	24	6	6
+    8	26	3	3
+   
+
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	1	started	arr	1	total	12	remain	12	wait	0
+    At	time	3	process	1	stopped	arr	1	total	12	remain	10	wait	0
+    At	time	4	process	2	started	arr	2	total	8	remain	8	wait	2
+    At	time	6	process	2	stopped	arr	2	total	8	remain	6	wait	2
+    At	time	7	process	1	resumed	arr	1	total	12	remain	10	wait	4
+    At	time	9	process	1	stopped	arr	1	total	12	remain	8	wait	4
+    At	time	10	process	2	resumed	arr	2	total	8	remain	6	wait	6
+    At	time	12	process	2	stopped	arr	2	total	8	remain	4	wait	6
+    At	time	13	process	1	resumed	arr	1	total	12	remain	8	wait	8
+    At	time	15	process	1	stopped	arr	1	total	12	remain	6	wait	8
+    At	time	16	process	3	started	arr	12	total	9	remain	9	wait	4
+    At	time	18	process	3	stopped	arr	12	total	9	remain	7	wait	4
+    At	time	19	process	2	resumed	arr	2	total	8	remain	4	wait	13
+    At	time	21	process	2	stopped	arr	2	total	8	remain	2	wait	13
+    At	time	22	process	1	resumed	arr	1	total	12	remain	6	wait	15
+    At	time	24	process	1	stopped	arr	1	total	12	remain	4	wait	15
+    At	time	25	process	4	started	arr	16	total	5	remain	5	wait	9
+    At	time	27	process	4	stopped	arr	16	total	5	remain	3	wait	9
+    At	time	28	process	5	started	arr	18	total	8	remain	8	wait	10
+    At	time	30	process	5	stopped	arr	18	total	8	remain	6	wait	10
+    At	time	31	process	3	resumed	arr	12	total	9	remain	7	wait	17
+    At	time	33	process	3	stopped	arr	12	total	9	remain	5	wait	17
+    At	time	34	process	2	resumed	arr	2	total	8	remain	2	wait	26
+    At	time	36	process	2	finished	arr	2	total	8	remain	0	wait	26	TA	34	WTA	4.25
+    At	time	37	process	6	started	arr	22	total	10	remain	10	wait	15
+    At	time	39	process	6	stopped	arr	22	total	10	remain	8	wait	15
+    At	time	40	process	7	started	arr	24	total	6	remain	6	wait	16
+    At	time	42	process	7	stopped	arr	24	total	6	remain	4	wait	16
+    At	time	43	process	1	resumed	arr	1	total	12	remain	4	wait	34
+    At	time	45	process	1	stopped	arr	1	total	12	remain	2	wait	34
+    At	time	46	process	8	started	arr	26	total	3	remain	3	wait	20
+    At	time	48	process	8	stopped	arr	26	total	3	remain	1	wait	20
+    At	time	49	process	4	resumed	arr	16	total	5	remain	3	wait	31
+    At	time	51	process	4	stopped	arr	16	total	5	remain	1	wait	31
+    At	time	52	process	5	resumed	arr	18	total	8	remain	6	wait	32
+    At	time	54	process	5	stopped	arr	18	total	8	remain	4	wait	32
+    At	time	55	process	3	resumed	arr	12	total	9	remain	5	wait	39
+    At	time	57	process	3	stopped	arr	12	total	9	remain	3	wait	39
+    At	time	58	process	6	resumed	arr	22	total	10	remain	8	wait	34
+    At	time	60	process	6	stopped	arr	22	total	10	remain	6	wait	34
+    At	time	61	process	7	resumed	arr	24	total	6	remain	4	wait	35
+    At	time	63	process	7	stopped	arr	24	total	6	remain	2	wait	35
+    At	time	64	process	1	resumed	arr	1	total	12	remain	2	wait	53
+    At	time	66	process	1	finished	arr	1	total	12	remain	0	wait	53	TA	65	WTA	5.42
+    At	time	67	process	8	resumed	arr	26	total	3	remain	1	wait	39
+    At	time	68	process	8	finished	arr	26	total	3	remain	0	wait	39	TA	42	WTA	14.00
+    At	time	69	process	4	resumed	arr	16	total	5	remain	1	wait	49
+    At	time	70	process	4	finished	arr	16	total	5	remain	0	wait	49	TA	54	WTA	10.80
+    At	time	71	process	5	resumed	arr	18	total	8	remain	4	wait	49
+    At	time	73	process	5	stopped	arr	18	total	8	remain	2	wait	49
+    At	time	74	process	3	resumed	arr	12	total	9	remain	3	wait	56
+    At	time	76	process	3	stopped	arr	12	total	9	remain	1	wait	56
+    At	time	77	process	6	resumed	arr	22	total	10	remain	6	wait	51
+    At	time	79	process	6	stopped	arr	22	total	10	remain	4	wait	51
+    At	time	80	process	7	resumed	arr	24	total	6	remain	2	wait	52
+    At	time	82	process	7	finished	arr	24	total	6	remain	0	wait	52	TA	58	WTA	9.67
+    At	time	83	process	5	resumed	arr	18	total	8	remain	2	wait	59
+    At	time	85	process	5	finished	arr	18	total	8	remain	0	wait	59	TA	67	WTA	8.38
+    At	time	86	process	3	resumed	arr	12	total	9	remain	1	wait	66
+    At	time	87	process	3	finished	arr	12	total	9	remain	0	wait	66	TA	75	WTA	8.33
+    At	time	88	process	6	resumed	arr	22	total	10	remain	4	wait	60
+    At	time	92	process	6	finished	arr	22	total	10	remain	0	wait	60	TA	70	WTA	7.00
+
+    CPU utilization = 67.03%
+    Avg WTA = 8.48
+    Avg Waiting = 50.50
+    Std WTA = 2.89
+
+tc5_rr2.txt
+    #id arrival runtime priority
+    1	1	12	3
+    2	1	8	8
+    3	1	9	3
+    4	1	5	5
+    5	1	8	4
+    6	1	10	9
+    7	1	6	6
+    8	1	3	3
+
+
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	1	started	arr	1	total	12	remain	12	wait	0
+    At	time	3	process	1	stopped	arr	1	total	12	remain	10	wait	0
+    At	time	4	process	2	started	arr	1	total	8	remain	8	wait	3
+    At	time	6	process	2	stopped	arr	1	total	8	remain	6	wait	3
+    At	time	7	process	3	started	arr	1	total	9	remain	9	wait	6
+    At	time	9	process	3	stopped	arr	1	total	9	remain	7	wait	6
+    At	time	10	process	4	started	arr	1	total	5	remain	5	wait	9
+    At	time	12	process	4	stopped	arr	1	total	5	remain	3	wait	9
+    At	time	13	process	5	started	arr	1	total	8	remain	8	wait	12
+    At	time	15	process	5	stopped	arr	1	total	8	remain	6	wait	12
+    At	time	16	process	6	started	arr	1	total	10	remain	10	wait	15
+    At	time	18	process	6	stopped	arr	1	total	10	remain	8	wait	15
+    At	time	19	process	7	started	arr	1	total	6	remain	6	wait	18
+    At	time	21	process	7	stopped	arr	1	total	6	remain	4	wait	18
+    At	time	22	process	8	started	arr	1	total	3	remain	3	wait	21
+    At	time	24	process	8	stopped	arr	1	total	3	remain	1	wait	21
+    At	time	25	process	1	resumed	arr	1	total	12	remain	10	wait	22
+    At	time	27	process	1	stopped	arr	1	total	12	remain	8	wait	22
+    At	time	28	process	2	resumed	arr	1	total	8	remain	6	wait	25
+    At	time	30	process	2	stopped	arr	1	total	8	remain	4	wait	25
+    At	time	31	process	3	resumed	arr	1	total	9	remain	7	wait	28
+    At	time	33	process	3	stopped	arr	1	total	9	remain	5	wait	28
+    At	time	34	process	4	resumed	arr	1	total	5	remain	3	wait	31
+    At	time	36	process	4	stopped	arr	1	total	5	remain	1	wait	31
+    At	time	37	process	5	resumed	arr	1	total	8	remain	6	wait	34
+    At	time	39	process	5	stopped	arr	1	total	8	remain	4	wait	34
+    At	time	40	process	6	resumed	arr	1	total	10	remain	8	wait	37
+    At	time	42	process	6	stopped	arr	1	total	10	remain	6	wait	37
+    At	time	43	process	7	resumed	arr	1	total	6	remain	4	wait	40
+    At	time	45	process	7	stopped	arr	1	total	6	remain	2	wait	40
+    At	time	46	process	8	resumed	arr	1	total	3	remain	1	wait	43
+    At	time	47	process	8	finished	arr	1	total	3	remain	0	wait	43	TA	46	WTA	15.33
+    At	time	48	process	1	resumed	arr	1	total	12	remain	8	wait	43
+    At	time	50	process	1	stopped	arr	1	total	12	remain	6	wait	43
+    At	time	51	process	2	resumed	arr	1	total	8	remain	4	wait	46
+    At	time	53	process	2	stopped	arr	1	total	8	remain	2	wait	46
+    At	time	54	process	3	resumed	arr	1	total	9	remain	5	wait	49
+    At	time	56	process	3	stopped	arr	1	total	9	remain	3	wait	49
+    At	time	57	process	4	resumed	arr	1	total	5	remain	1	wait	52
+    At	time	58	process	4	finished	arr	1	total	5	remain	0	wait	52	TA	57	WTA	11.40
+    At	time	59	process	5	resumed	arr	1	total	8	remain	4	wait	54
+    At	time	61	process	5	stopped	arr	1	total	8	remain	2	wait	54
+    At	time	62	process	6	resumed	arr	1	total	10	remain	6	wait	57
+    At	time	64	process	6	stopped	arr	1	total	10	remain	4	wait	57
+    At	time	65	process	7	resumed	arr	1	total	6	remain	2	wait	60
+    At	time	67	process	7	finished	arr	1	total	6	remain	0	wait	60	TA	66	WTA	11.00
+    At	time	68	process	1	resumed	arr	1	total	12	remain	6	wait	61
+    At	time	70	process	1	stopped	arr	1	total	12	remain	4	wait	61
+    At	time	71	process	2	resumed	arr	1	total	8	remain	2	wait	64
+    At	time	73	process	2	finished	arr	1	total	8	remain	0	wait	64	TA	72	WTA	9.00
+    At	time	74	process	3	resumed	arr	1	total	9	remain	3	wait	67
+    At	time	76	process	3	stopped	arr	1	total	9	remain	1	wait	67
+    At	time	77	process	5	resumed	arr	1	total	8	remain	2	wait	70
+    At	time	79	process	5	finished	arr	1	total	8	remain	0	wait	70	TA	78	WTA	9.75
+    At	time	80	process	6	resumed	arr	1	total	10	remain	4	wait	73
+    At	time	82	process	6	stopped	arr	1	total	10	remain	2	wait	73
+    At	time	83	process	1	resumed	arr	1	total	12	remain	4	wait	74
+    At	time	85	process	1	stopped	arr	1	total	12	remain	2	wait	74
+    At	time	86	process	3	resumed	arr	1	total	9	remain	1	wait	77
+    At	time	87	process	3	finished	arr	1	total	9	remain	0	wait	77	TA	86	WTA	9.56
+    At	time	88	process	6	resumed	arr	1	total	10	remain	2	wait	79
+    At	time	90	process	6	finished	arr	1	total	10	remain	0	wait	79	TA	89	WTA	8.90
+    At	time	91	process	1	resumed	arr	1	total	12	remain	2	wait	80
+    At	time	93	process	1	finished	arr	1	total	12	remain	0	wait	80	TA	92	WTA	7.67
+
+    CPU utilization = 66.30%
+    Avg WTA = 10.33
+    Avg Waiting = 65.62
+    Std WTA = 2.19
+
+tc6_rr3.txt
+    #id arrival runtime priority
+    1	1	12	3
+    2	2	8	8
+    3	12	9	3
+    4	15	5	5
+    5	18	8	4
+    6	22	10	9
+    7	25	6	6
+    8	26	3	3
+
+
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	1	started	arr	1	total	12	remain	12	wait	0
+    At	time	4	process	1	stopped	arr	1	total	12	remain	9	wait	0
+    At	time	5	process	2	started	arr	2	total	8	remain	8	wait	3
+    At	time	8	process	2	stopped	arr	2	total	8	remain	5	wait	3
+    At	time	9	process	1	resumed	arr	1	total	12	remain	9	wait	5
+    At	time	12	process	1	stopped	arr	1	total	12	remain	6	wait	5
+    At	time	13	process	2	resumed	arr	2	total	8	remain	5	wait	8
+    At	time	16	process	2	stopped	arr	2	total	8	remain	2	wait	8
+    At	time	17	process	3	started	arr	12	total	9	remain	9	wait	5
+    At	time	20	process	3	stopped	arr	12	total	9	remain	6	wait	5
+    At	time	21	process	1	resumed	arr	1	total	12	remain	6	wait	14
+    At	time	24	process	1	stopped	arr	1	total	12	remain	3	wait	14
+    At	time	25	process	4	started	arr	15	total	5	remain	5	wait	10
+    At	time	28	process	4	stopped	arr	15	total	5	remain	2	wait	10
+    At	time	29	process	2	resumed	arr	2	total	8	remain	2	wait	21
+    At	time	31	process	2	finished	arr	2	total	8	remain	0	wait	21	TA	29	WTA	3.62
+    At	time	32	process	5	started	arr	18	total	8	remain	8	wait	14
+    At	time	35	process	5	stopped	arr	18	total	8	remain	5	wait	14
+    At	time	36	process	3	resumed	arr	12	total	9	remain	6	wait	21
+    At	time	39	process	3	stopped	arr	12	total	9	remain	3	wait	21
+    At	time	40	process	6	started	arr	22	total	10	remain	10	wait	18
+    At	time	43	process	6	stopped	arr	22	total	10	remain	7	wait	18
+    At	time	44	process	1	resumed	arr	1	total	12	remain	3	wait	34
+    At	time	47	process	1	finished	arr	1	total	12	remain	0	wait	34	TA	46	WTA	3.83
+    At	time	48	process	7	started	arr	25	total	6	remain	6	wait	23
+    At	time	51	process	7	stopped	arr	25	total	6	remain	3	wait	23
+    At	time	52	process	8	started	arr	26	total	3	remain	3	wait	26
+    At	time	55	process	8	finished	arr	26	total	3	remain	0	wait	26	TA	29	WTA	9.67
+    At	time	56	process	4	resumed	arr	15	total	5	remain	2	wait	38
+    At	time	58	process	4	finished	arr	15	total	5	remain	0	wait	38	TA	43	WTA	8.60
+    At	time	59	process	5	resumed	arr	18	total	8	remain	5	wait	38
+    At	time	62	process	5	stopped	arr	18	total	8	remain	2	wait	38
+    At	time	63	process	3	resumed	arr	12	total	9	remain	3	wait	45
+    At	time	66	process	3	finished	arr	12	total	9	remain	0	wait	45	TA	54	WTA	6.00
+    At	time	67	process	6	resumed	arr	22	total	10	remain	7	wait	42
+    At	time	70	process	6	stopped	arr	22	total	10	remain	4	wait	42
+    At	time	71	process	7	resumed	arr	25	total	6	remain	3	wait	43
+    At	time	74	process	7	finished	arr	25	total	6	remain	0	wait	43	TA	49	WTA	8.17
+    At	time	75	process	5	resumed	arr	18	total	8	remain	2	wait	51
+    At	time	77	process	5	finished	arr	18	total	8	remain	0	wait	51	TA	59	WTA	7.38
+    At	time	78	process	6	resumed	arr	22	total	10	remain	4	wait	50
+    At	time	82	process	6	finished	arr	22	total	10	remain	0	wait	50	TA	60	WTA	6.00
+
+    CPU utilization = 75.31%
+    Avg WTA = 6.66
+    Avg Waiting = 38.50
+    Std WTA = 2.05
+
+tc7_rr3.txt
+    #id arrival runtime priority
+    1	1	12	3
+    2	1	8	8
+    3	1	9	3
+    4	1	5	5
+    5	1	8	4
+    6	1	10	9
+    7	1	6	6
+    8	1	3	3
+
+
+    #At	time	x	process	y	state	arr	w	total	z	remain	y	wait	k
+    At	time	1	process	1	started	arr	1	total	12	remain	12	wait	0
+    At	time	4	process	1	stopped	arr	1	total	12	remain	9	wait	0
+    At	time	5	process	2	started	arr	1	total	8	remain	8	wait	4
+    At	time	8	process	2	stopped	arr	1	total	8	remain	5	wait	4
+    At	time	9	process	3	started	arr	1	total	9	remain	9	wait	8
+    At	time	12	process	3	stopped	arr	1	total	9	remain	6	wait	8
+    At	time	13	process	4	started	arr	1	total	5	remain	5	wait	12
+    At	time	16	process	4	stopped	arr	1	total	5	remain	2	wait	12
+    At	time	17	process	5	started	arr	1	total	8	remain	8	wait	16
+    At	time	20	process	5	stopped	arr	1	total	8	remain	5	wait	16
+    At	time	21	process	6	started	arr	1	total	10	remain	10	wait	20
+    At	time	24	process	6	stopped	arr	1	total	10	remain	7	wait	20
+    At	time	25	process	7	started	arr	1	total	6	remain	6	wait	24
+    At	time	28	process	7	stopped	arr	1	total	6	remain	3	wait	24
+    At	time	29	process	8	started	arr	1	total	3	remain	3	wait	28
+    At	time	32	process	8	finished	arr	1	total	3	remain	0	wait	28	TA	31	WTA	10.33
+    At	time	33	process	1	resumed	arr	1	total	12	remain	9	wait	29
+    At	time	36	process	1	stopped	arr	1	total	12	remain	6	wait	29
+    At	time	37	process	2	resumed	arr	1	total	8	remain	5	wait	33
+    At	time	40	process	2	stopped	arr	1	total	8	remain	2	wait	33
+    At	time	41	process	3	resumed	arr	1	total	9	remain	6	wait	37
+    At	time	44	process	3	stopped	arr	1	total	9	remain	3	wait	37
+    At	time	45	process	4	resumed	arr	1	total	5	remain	2	wait	41
+    At	time	47	process	4	finished	arr	1	total	5	remain	0	wait	41	TA	46	WTA	9.20
+    At	time	48	process	5	resumed	arr	1	total	8	remain	5	wait	44
+    At	time	51	process	5	stopped	arr	1	total	8	remain	2	wait	44
+    At	time	52	process	6	resumed	arr	1	total	10	remain	7	wait	48
+    At	time	55	process	6	stopped	arr	1	total	10	remain	4	wait	48
+    At	time	56	process	7	resumed	arr	1	total	6	remain	3	wait	52
+    At	time	59	process	7	finished	arr	1	total	6	remain	0	wait	52	TA	58	WTA	9.67
+    At	time	60	process	1	resumed	arr	1	total	12	remain	6	wait	53
+    At	time	63	process	1	stopped	arr	1	total	12	remain	3	wait	53
+    At	time	64	process	2	resumed	arr	1	total	8	remain	2	wait	57
+    At	time	66	process	2	finished	arr	1	total	8	remain	0	wait	57	TA	65	WTA	8.12
+    At	time	67	process	3	resumed	arr	1	total	9	remain	3	wait	60
+    At	time	70	process	3	finished	arr	1	total	9	remain	0	wait	60	TA	69	WTA	7.67
+    At	time	71	process	5	resumed	arr	1	total	8	remain	2	wait	64
+    At	time	73	process	5	finished	arr	1	total	8	remain	0	wait	64	TA	72	WTA	9.00
+    At	time	74	process	6	resumed	arr	1	total	10	remain	4	wait	67
+    At	time	77	process	6	stopped	arr	1	total	10	remain	1	wait	67
+    At	time	78	process	1	resumed	arr	1	total	12	remain	3	wait	68
+    At	time	81	process	1	finished	arr	1	total	12	remain	0	wait	68	TA	80	WTA	6.67
+    At	time	82	process	6	resumed	arr	1	total	10	remain	1	wait	72
+    At	time	83	process	6	finished	arr	1	total	10	remain	0	wait	72	TA	82	WTA	8.20
+
+    CPU utilization = 74.39%
+    Avg WTA = 8.61
+    Avg Waiting = 55.25
+    Std WTA = 1.10

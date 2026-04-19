@@ -21,7 +21,8 @@ extern int receivingProcesses;
 extern int idArr[2];
 extern int N_time;
 extern int processStopped;
-
+extern Queue *readyQueue;
+extern int stalled;
 
 extern perfVars perf;
 struct PCB createPCB(processData p);
