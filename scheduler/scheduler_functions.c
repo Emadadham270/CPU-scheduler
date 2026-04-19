@@ -319,7 +319,7 @@ void FCFS_algo(Queue *readyQueue, struct PCB **currProcess, int N, int M, FILE *
     if (subCpu_created)
     {
         N_time++;
-        if (N_time >= N)
+        if (getClk()% N==0||stalled)
         {
             N_time = 0;
              
@@ -616,8 +616,11 @@ void check_threshold(int M,int N)
     read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
     diff = abs(rt1 - rt2);
 
-    while (diff > M)
+    if (diff > M)
     {
+        stalled=1;
+        processData p;
+        printf("entered at time %d",getClk());
         int busier_idx, lighter_msgq;
         if (rt1 > rt2)
         {
@@ -691,6 +694,8 @@ void check_threshold(int M,int N)
         read_all_load_shm(load_shm_addr, &c1, &rt1, &c2, &rt2);
         diff = abs(rt1 - rt2);
     }
+    else 
+    stalled=0;
 
 }
 
@@ -726,21 +731,21 @@ int receiveProcesses(Queue *readyQueue,processData process,int type)
     if (msgrcv(msgq_id, &process, sizeof(processData) - sizeof(long), 0,
                     IPC_NOWAIT) != -1)
       {
-
-        if (process.mtype == 5)
-        {
-          receivingProcesses = 0;
-          return -1;
-        }
-
-        struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
-        *pcb = createPCB(process);
-
-
-        // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
-        if(perf.first_arrival == -1) {
-          perf.first_arrival = pcb->arrival;
-        }
+          
+          if (process.mtype == 5)
+          {
+              receivingProcesses = 0;
+              return -1;
+            }
+            
+            struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
+            *pcb = createPCB(process);
+            
+            
+            // we need the first arrival to calculate CPU utilization (= Finish - first_arrival / total_runtime)
+            if(perf.first_arrival == -1) {
+                perf.first_arrival = pcb->arrival;
+            }
         if (type == 2) // HPF
         {
             enqueue_priority(readyQueue, pcb);

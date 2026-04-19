@@ -20,6 +20,7 @@ int idArr[2];
 int N_time=0;
 int context_switch_until=-1;
 int processStopped=0;
+int stalled=0;
 perfVars perf;
 void onProcessFinished(int signum)
 {
