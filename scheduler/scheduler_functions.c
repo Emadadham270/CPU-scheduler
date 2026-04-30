@@ -620,7 +620,6 @@ void check_threshold(int M,int N)
     {
         stalled=1;
         processData p;
-        printf("entered at time %d",getClk());
         int busier_idx, lighter_msgq;
         if (rt1 > rt2)
         {
