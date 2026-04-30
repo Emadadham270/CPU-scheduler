@@ -212,7 +212,7 @@ void write_perf(struct PerfVars perf, FILE *perf_file)
 
     float std_WTA = 0.0f;
     if (perf.num_procs > 1)
-        std_WTA = sqrtf(perf.M2_WTA / (perf.num_procs - 1));
+        std_WTA = sqrtf(perf.M2_WTA / (perf.num_procs));
 
     fprintf(perf_file, "CPU utilization = %.2f%%\n", cpu_util);
     fprintf(perf_file, "Avg WTA = %.2f\n", perf.avg_WTA);
