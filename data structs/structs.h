@@ -111,6 +111,7 @@ typedef struct Frame
   PTE *pte;
   short occupied;
   int data;
+  int vpage;
 } Frame;
 
 typedef struct request
@@ -119,5 +120,11 @@ typedef struct request
   int address;
   char operation; // 'R' for read, 'W' for write
 } request;
+
+typedef struct VirtualAddress
+{
+    int page;
+    int offset;
+} VirtualAddress;
 
 #endif

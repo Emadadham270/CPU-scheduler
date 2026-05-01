@@ -172,6 +172,41 @@ int total_remaining_time(Queue *q)
     return total;
 }
 
+PCB *dequeue_by_id(Queue *q, int id)
+{
+    if (isEmpty(q))
+        return NULL;
+
+    // check if it is the front
+    if (q->front->pcb->id == id)
+        return dequeue(q);
+
+    // search for the node
+    Node *prev = q->front;
+    Node *curr = q->front->next;
+
+    while (curr != NULL)
+    {
+        if (curr->pcb->id == id)
+        {
+            prev->next = curr->next;
+
+            // if it was the rear update rear
+            if (curr == q->rear)
+                q->rear = prev;
+
+            PCB *p = curr->pcb;
+            free(curr);
+            q->size--;
+            return p;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    return NULL; // id not found in queue
+}
+
 /*
 plan
 

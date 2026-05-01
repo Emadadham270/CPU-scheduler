@@ -16,6 +16,7 @@ void   enqueue_priority(Queue *q, PCB *pcb);
 
 PCB   *dequeue(Queue *q);
 PCB   *dequeue_rear(Queue *q);
+PCB *dequeue_by_id(Queue *q, int id);
 PCB   *peek(Queue *q);
 PCB   *peek_rear(Queue *q);
 

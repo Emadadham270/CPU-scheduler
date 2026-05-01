@@ -5,6 +5,8 @@ int msgq_id;
 int sem_id;
 int receivingProcesses = 1;
 Queue *readyQueue;
+Queue *currentPCBs;
+
 struct PCB *currProcess = NULL;
 int quantum;
 int k = 0;
@@ -127,7 +129,7 @@ int main(int argc, char *argv[])
             perf.avg_Waiting += currProcess->waiting_time;
             perf.total_runtime += currProcess->runtime;
             perf.finish_time = currProcess->finish_time;
-
+            dequeue_by_id(currentPCBs, currProcess->id);
             free(currProcess);
             currProcess = NULL;
             next_preemtion_time = -1;
@@ -154,6 +156,7 @@ int main(int argc, char *argv[])
                             if (perf.first_arrival == -1)
                                 perf.first_arrival = pcb->arrival;
                             enqueue(readyQueue, pcb);
+                            enqueue(currentPCBs,pcb);
                         }
                         else if (msg.mtype == 2)
                         {
