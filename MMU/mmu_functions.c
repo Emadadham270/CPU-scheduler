@@ -26,16 +26,10 @@ PCB *get_process(int id)
     return NULL;  // not found
 }
 
-void allocatePageTable()
-{
-
-}
-
-
-void swap(int id, int frameIndex, Frame arr[],int type,int page)
+void swap(int id, int frameIndex,int type,int page)
 {
     //set the delay
-     if (arr[frameIndex].M == 0)
+     if (RAM[frameIndex].M == 0)
     {
         block_end_time = getClk() + 10;
     }
@@ -45,29 +39,29 @@ void swap(int id, int frameIndex, Frame arr[],int type,int page)
     }
 
     //update last owner page table
-    PCB *old_owner = get_process(arr[frameIndex].process_id);
-    arr[old_owner->frame_index].pte[arr[frameIndex].vpage].valid = 0;
-    arr[old_owner->frame_index].pte[arr[frameIndex].vpage].frame_address = -1;
-    arr[old_owner->frame_index].pte[arr[frameIndex].vpage].R = 0;
-    arr[old_owner->frame_index].pte[arr[frameIndex].vpage].M = 0;
+    PCB *old_owner = get_process(RAM[frameIndex].process_id);
+    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].valid = 0;
+    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].frame_address = -1;
+    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].R = 0;
+    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].M = 0;
 
     //check if uou load a page table or a normal data
     if(type==1)
-        allocatePageTable();
+        define_page_table(id,frameIndex);
     else
     {
         PCB *owner = get_process(id);
         //owner->state = BLOCKED;===================>to be added
         //owner->unblock_at = block_end_time;
-        arr[owner->frame_index].pte[page].valid = 1;
-        arr[owner->frame_index].pte[page].frame_address = frameIndex;
-        arr[owner->frame_index].pte[page].R = 0;
-        arr[owner->frame_index].pte[page].M = 0;
-        arr[frameIndex].process_id = id;
-        arr[frameIndex].R = 0;
-        arr[frameIndex].M = 0;
-        arr[frameIndex].occupied = 1;
-        arr[frameIndex].vpage = page; 
+        RAM[owner->frame_index].pte[page].valid = 1;
+        RAM[owner->frame_index].pte[page].frame_address = frameIndex;
+        RAM[owner->frame_index].pte[page].R = 0;
+        RAM[owner->frame_index].pte[page].M = 0;
+        RAM[frameIndex].process_id = id;
+        RAM[frameIndex].R = 0;
+        RAM[frameIndex].M = 0;
+        RAM[frameIndex].occupied = 1;
+        RAM[frameIndex].vpage = page; 
     }
 
    
@@ -89,7 +83,7 @@ VirtualAddress parse_virtual_address(char *bin_str)
 }
 
 //----------------to be changed -----------------------
-int fault_handler(int pid)
+void fault_handler(int pid,int page_num,char req_type)
 {
     int cls=4;
     int victim_index=-1;
@@ -110,10 +104,10 @@ int fault_handler(int pid)
         }
     }
     if(cls<4)
-        Swap(victim_index,pid);
+        swap(pid,victim_index,req_type,page_num);
     else 
-        allocate(victim_index,pid);
         //we allocate the new page in this frame 
+        put_page_in_frame(pid,page_num,victim_index);
 
 }
 void clear_recent()
@@ -214,4 +208,12 @@ void put_page_in_frame(int pid, int page_number, int frame_index)
     RAM[frame_index].pte[page_number].R = 0;
     RAM[frame_index].pte[page_number].M = 0;
     RAM[frame_index].pte[page_number].frame_address = frame_index; // Assuming the frame address is the same as the index for simplicity
+}
+
+//---------to be done ------------
+int check_page_in_RAM(int vpt_address)
+{
+    // will return the index where the page in RAM 
+    // else return -1
+
 }

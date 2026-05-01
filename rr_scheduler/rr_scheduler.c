@@ -2,6 +2,7 @@
 #include "../headers.h"
 
 int msgq_id;
+int req_msgq;
 int sem_id;
 int receivingProcesses = 1;
 Queue *readyQueue;
@@ -26,11 +27,13 @@ void onProcessFinished(int signum)
 int main(int argc, char *argv[])
 {
     (void)argc;
-    key_t key_id;
+    key_t key_id,req_key_id;
     signal(SIGINT, cleanup);
     signal(SIGUSR1, onProcessFinished);
     key_id = ftok("../keyFile", 65);
+    req_key_id = ftok("../keyFile", 70);
     msgq_id = msgget(key_id, 0666);
+    req_msgq = msgget(req_key_id, 0666);
     perf = initialize_perf();
 
     shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
@@ -61,10 +64,10 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    if (msgq_id == -1)
+    if (msgq_id == -1 || req_msgq )
     {
         perror("Error in receive message queue");
-        exit(1);
+        exit(-1);
     }
     readyQueue = createQueue();
     char *e;
@@ -88,6 +91,10 @@ int main(int argc, char *argv[])
             continue; // spin until next tick
 
         last_tick = now;
+
+        // 0. receive requests for the memory
+        //---------- may change if we will put it at the end of the while loop and refuse req logic will be added then -------------
+        handleRequests();
 
         // 1. Handle finished process (before algo, so we don't preempt a dead process)
         if (currProcess != NULL && processFinishedSignal)
@@ -137,7 +144,6 @@ int main(int argc, char *argv[])
         if (context_switch_until == -1 || now >= context_switch_until)
         {
             context_switch_until = -1;
-
             // 2. Receive new arrivals synchronously with process_generator
             if (receivingProcesses)
             {

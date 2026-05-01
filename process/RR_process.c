@@ -9,6 +9,8 @@ int sem_id;
 volatile sig_atomic_t prev_clk_tick;
 int running_time = 0;
 int req_index = 0;
+int req_msgq;
+
 void on_cont(int signum)
 {
     (void)signum;
@@ -85,17 +87,19 @@ int main(int argc, char *argv[])
         perror("Error in attaching the shm of RT");
         exit(-1);
     }
+
+    //make array of requests [size 100] 
+    //fill it from the file requests.txt at the input 
     FILE *file = fopen("requests.txt", "r");
     if (file == NULL)
     {
         perror("Error opening file");
         exit(-1);
     }
-    request array[100];
-    
+    request reqs_arr[100];
     int i = 0;
 
-    while (fscanf(file, "%d %d %c", &array[i].tick, &array[i].address, &array[i].operation) == 3)
+    while (fscanf(file, "%d %d %c", &reqs_arr[i].tick, &reqs_arr[i].address, &reqs_arr[i].operation) == 3)
     {
         i++;
     }
@@ -105,17 +109,19 @@ int main(int argc, char *argv[])
         if (line[0] == '#' || line[0] == '\n')
             continue;
         
-        sscanf(line, "%d %d %c", &array[i].tick, &array[i].address, &array[i].operation);
+        sscanf(line, "%d %d %c", &reqs_arr[i].tick, &reqs_arr[i].address, &reqs_arr[i].operation);
         
     }
-    //make array of requests [size 100] 
-    //fill it from the file requests.txt at the input 
-    FILE *file = fopen("requests.txt", "r");
-    if (file == NULL)
+
+    int key_id = ftok("../keyFile", 70);
+    req_msgq = msgget(key_id, 0666|IPC_CREAT| IPC_EXCL);
+
+    if (req_msgq == -1)
     {
-        perror("Error opening file");
-        exit(-1);
+        perror("Error in request message queue");
+        exit(1);
     }
+
 
     // prev_clk_tick = getClk();
     while (remainingtime> 0)
@@ -125,10 +131,14 @@ int main(int argc, char *argv[])
         remainingtime--;
         *shmRT_addr=remainingtime;
         running_time++;
-        if(running_time==array[req_index].tick)
+        if(running_time==reqs_arr[req_index].tick)
         {
-            
             // make the request logic here 
+            if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(int), 0) == -1)
+            {
+                perror("Error in msgsnd");
+            }
+
             req_index++;
         }
         
