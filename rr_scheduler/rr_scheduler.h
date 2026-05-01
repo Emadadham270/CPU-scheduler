@@ -33,4 +33,6 @@ void write_perf(struct PerfVars perf, FILE *perf_file);
 void down(int sem);
 void up(int sem);
 
+void initialize_PCB(PCB *pcb);
+
 #endif // RR_SCHEDULER_H

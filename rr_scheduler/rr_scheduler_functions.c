@@ -195,6 +195,11 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
     }
 }
 
+void initialize_PCB(struct PCB *pcb)
+{
+    
+}
+
 void wait_N_secs(int pen, int N)
 {
     int curr = getClk() + pen;

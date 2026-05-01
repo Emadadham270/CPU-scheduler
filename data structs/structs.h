@@ -21,7 +21,8 @@ typedef enum logState
   STOLEN,
 } logState;
 
-typedef struct PerfVars{
+typedef struct PerfVars
+{
   float avg_WTA;
   float avg_Waiting;
   float std_WTA;
@@ -45,12 +46,15 @@ typedef struct PCB
   int start_time;
   int finish_time;
   int last_stopped;
-  
+
   pid_t pid;
   char state;
   enum logState lState; // This is used for logging purposes
 
   struct PCB *next;
+
+  int frame_index; // This is used to keep track of the frame index in the page table
+  
 } PCB;
 
 typedef struct PCBNode
@@ -86,5 +90,29 @@ union Semun
   unsigned short *array;
   struct seminfo *__buf;
 };
+
+typedef struct PTE
+{
+
+  short R;
+  short M;
+  int frame_address;
+  int valid;
+
+} PTE;
+
+typedef struct Frame
+{
+  short R;
+  short M;
+  int process_id;
+  int state;
+  PTE *pte;
+  short occupied;
+  int data;
+  
+} Frame;
+
+
 
 #endif

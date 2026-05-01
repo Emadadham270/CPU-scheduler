@@ -48,6 +48,9 @@ int main(int argc, char *argv[])
         perror("Error in create sem");
         exit(-1);
     }
+
+
+
     union Semun semun;
     semun.val = 0;
     if (semctl(sem_id, 0, SETVAL, semun) == -1)
@@ -143,6 +146,9 @@ int main(int argc, char *argv[])
                         {
                             struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
                             *pcb = createPCB(msg);
+                            //add the logic of the first arrival 
+
+                            pcb->frame_index = -1;
                             if (perf.first_arrival == -1)
                                 perf.first_arrival = pcb->arrival;
                             enqueue(readyQueue, pcb);
