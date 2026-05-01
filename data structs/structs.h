@@ -10,6 +10,8 @@ typedef struct processData
   int arrival;
   int runtime;
   int priority;
+  int base;
+  int limit;
 } processData;
 
 typedef enum logState
