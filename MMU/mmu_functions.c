@@ -84,7 +84,7 @@ VirtualAddress parse_virtual_address(char *bin_str)
     va.page   = addr >> 4;   // upper 6 bits
     va.offset = addr & 0xF;  // lower 4 bits
     return va;
-#include "mmu.h"
+}
 
 //----------------to be changed -----------------------
 int fault_handler(int pid)
