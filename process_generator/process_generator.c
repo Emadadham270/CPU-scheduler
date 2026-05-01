@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     {
         if (type == 1)
         {
-            execl("../outFiles/scheduler.out", "scheduler.out", tStr, qStr, NULL);
+            execl("../outFiles/rr_scheduler.out", "rr_scheduler.out", qStr, NULL);
         }
         else if (type == 2)
         {
