@@ -308,3 +308,29 @@ void write_perf(struct PerfVars perf, FILE *perf_file)
     fprintf(perf_file, "Avg Waiting = %.2f\n", perf.avg_Waiting);
     fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
 }
+
+void handleRequests()
+{
+    request req;
+    if(msgrcv(req_msgq, &req,sizeof(request) , 0, 0)==-1)
+    {
+        perror("msgrcv error");
+        return;
+    }
+    else 
+    {
+        VirtualAddress VA=parse_virtual_address(req.address);
+        if(check(currProcess,VA.page))
+        {
+            int address=check_page_in_RAM(VA.page);
+            if(address!=-1)
+            {
+                RAM[address].R=1;
+                RAM[address].M=req.address=='w'? 1:RAM[address].M;
+            }else
+            {
+                fault_handler(currProcess->id,VA.page,req.operation);
+            }
+        }
+    }
+}

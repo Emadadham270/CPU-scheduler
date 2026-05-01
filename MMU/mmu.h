@@ -18,8 +18,8 @@ short check(PCB *pcb, int vpt_address);
 void define_page_table(int pid, int frame_index);
 int check_free_frame();
 void put_page_in_frame(int pid, int page_number, int frame_index);
-void fault_handler();
-void swap(int id, int frameIndex, Frame arr[],int type,int page);
+void fault_handler(int pid,int page_num,char req_type);
+void swap(int id, int frameIndex,int type,int page);
 VirtualAddress parse_virtual_address(char *bin_str);
-
+short check_page_in_RAM(int vpt_address);
 #endif

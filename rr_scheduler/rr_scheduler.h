@@ -8,6 +8,7 @@
 #include <stdio.h>
 
 extern int msgq_id;
+extern int req_msgq;
 extern int sem_id;
 extern int receivingProcesses;
 extern Queue *readyQueue;
@@ -36,7 +37,7 @@ void log_data(FILE *log_file, PCB *pcb);
 void write_perf(struct PerfVars perf, FILE *perf_file);
 void down(int sem);
 void up(int sem);
-
+void handleRequests();
 void initialize_PCB(PCB *pcb);
 
 #endif // RR_SCHEDULER_H
