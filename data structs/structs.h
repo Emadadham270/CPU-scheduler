@@ -106,7 +106,6 @@ typedef struct Frame
   short R;
   short M;
   int process_id;
-  int state;
   PTE *pte;
   short occupied;
   int data;
