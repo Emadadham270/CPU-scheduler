@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include "../data structs/structs.h"
 #include "../data_structures/PCB/Sch_PCB.h"
+#include "../MMU/mmu.h"
 #include <stdio.h>
 
 extern int msgq_id;
@@ -12,6 +13,8 @@ extern int receivingProcesses;
 extern Queue *readyQueue;
 extern struct PCB *currProcess;
 extern int quantum;
+extern int k;
+extern int quantums_passed;
 extern int processFinishedSignal;
 extern int next_preemtion_time;
 extern int *shmRT_addr;

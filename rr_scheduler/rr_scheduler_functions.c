@@ -85,6 +85,17 @@ struct PerfVars initialize_perf()
     return perf;
 }
 
+void initialize_PCB(PCB *pcb)
+{
+
+    int index = check_free_frame();
+    pcb->frame_index = index;
+    dafine_page_table(pcb->id, index);
+
+    int index = check_free_frame();
+    put_page_in_frame(pcb->id, 0, index);
+}
+
 void runProcess(struct PCB *pcb, FILE *log_file)
 {
     *shmRT_addr = pcb->remaining_time;
@@ -98,6 +109,8 @@ void runProcess(struct PCB *pcb, FILE *log_file)
     {
         pcb->lState = START;
         log_data(log_file, pcb);
+        // call function to make the init logic ( put the pt table at a free frame and put pt[0] at a free frame
+
         pid_t pid = fork();
         if (pid == -1)
         {
@@ -177,6 +190,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             (*currProcess)->state = 'W';
 
             enqueue(readyQueue, (*currProcess));
+            quantums_passed++; // Increment quantum counter when a quantum expires
             wait_N_secs(1, 1);
             *next_preemtion_time = getClk() + q;
 
@@ -197,7 +211,6 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
 
 void initialize_PCB(struct PCB *pcb)
 {
-    
 }
 
 void wait_N_secs(int pen, int N)
