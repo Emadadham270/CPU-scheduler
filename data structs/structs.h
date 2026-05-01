@@ -112,9 +112,14 @@ typedef struct Frame
   PTE *pte;
   short occupied;
   int data;
-  
+  int vpage;
 } Frame;
 
+typedef struct
+{
+    int page;
+    int offset;
+} VirtualAddress;
 
 
 #endif
