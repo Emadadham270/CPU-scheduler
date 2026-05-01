@@ -10,6 +10,7 @@ extern int msgq_id;
 extern int sem_id;
 extern int receivingProcesses;
 extern Queue *readyQueue;
+extern Queue *currentPCBs;
 extern struct PCB *currProcess;
 extern int quantum;
 extern int processFinishedSignal;
