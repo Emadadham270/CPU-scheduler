@@ -27,8 +27,8 @@ int main(int argc, char *argv[])
 
     // TODO Initialization
     // 1. Read the input files.
-    char fileName [100];
-    char path [150];
+    char fileName[100];
+    char path[150];
     printf("Enter the input file name\n");
     scanf("%s", fileName);
     sprintf(path, "input/%s", fileName);
@@ -36,9 +36,9 @@ int main(int argc, char *argv[])
     if (inputFile == NULL)
     {
         sprintf(path, "../input/%s", fileName);
-        //Support running from process_generator directory as well.
-        
-        //sprintf(path,  "../input/processes.txt");
+        // Support running from process_generator directory as well.
+
+        // sprintf(path,  "../input/processes.txt");
         inputFile = fopen(path, "r");
     }
     if (inputFile == NULL)
@@ -56,25 +56,29 @@ int main(int argc, char *argv[])
             continue;
         processData p;
         p.mtype = 1;
-        sscanf(line, "%d %d %d %d", &p.id, &p.arrival, &p.runtime, &p.priority);
-        if(p.runtime>0)
-        pg_enqueue(q, p);
+        sscanf(line, "%d %d %d %d %d %d", &p.id, &p.arrival, &p.runtime, &p.priority, &p.base, &p.limit);
+        if (p.runtime > 0)
+            pg_enqueue(q, p);
     }
     fclose(inputFile);
     // 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
     printf("Choose the Scheduling Algorithm \n1. RR\n2. HPF\n3. FCFS (2 CPUs)\n");
     int type;
-    char tStr[10], qStr[20], nStr[20], mStr[20];
+    char tStr[10], qStr[20], nStr[20], mStr[20], kStr[20];
     scanf("%d", &type);
     sprintf(tStr, "%d", type);
 
-    int quantum, N, M;
+    int quantum, N, M, k;
 
     if (type == 1)
     {
         printf("Enter the time quantum of RR\n");
         scanf("%d", &quantum);
         sprintf(qStr, "%d", quantum);
+
+        printf("Enter the k quantum to clear the R bit \n");
+        scanf("%d", &k);
+        sprintf(kStr, "%d", k);
     }
     else if (type == 3)
     {

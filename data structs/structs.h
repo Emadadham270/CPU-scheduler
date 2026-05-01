@@ -10,6 +10,8 @@ typedef struct processData
   int arrival;
   int runtime;
   int priority;
+  int base;
+  int limit;
 } processData;
 
 typedef enum logState
@@ -21,7 +23,8 @@ typedef enum logState
   STOLEN,
 } logState;
 
-typedef struct PerfVars{
+typedef struct PerfVars
+{
   float avg_WTA;
   float avg_Waiting;
   float std_WTA;
@@ -45,7 +48,7 @@ typedef struct PCB
   int start_time;
   int finish_time;
   int last_stopped;
-  
+
   pid_t pid;
   char state;
   enum logState lState; // This is used for logging purposes
