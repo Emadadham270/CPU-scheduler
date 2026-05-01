@@ -1,0 +1,297 @@
+#include "rr_scheduler.h"
+#include <math.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <stdbool.h>
+#include <errno.h>
+
+void destroyClk(bool terminateAll);
+int getClk(void);
+
+void down(int sem)
+{
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = -1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    while (semop(sem, &op, 1) == -1)
+    {
+        if (errno == EINTR)
+            continue; // retry if interrupted by signal
+        perror("Error in down()");
+        exit(-1);
+    }
+}
+
+void up(int sem)
+{
+    struct sembuf op;
+
+    op.sem_num = 0;
+    op.sem_op = 1;
+    op.sem_flg = !IPC_NOWAIT;
+
+    if (semop(sem, &op, 1) == -1)
+    {
+        perror("Error in up()");
+        exit(-1);
+    }
+}
+
+struct PCB createPCB(processData p)
+{
+    struct PCB pcb;
+
+    pcb.id = p.id;
+    pcb.arrival = p.arrival;
+    pcb.runtime = p.runtime;
+    pcb.priority = p.priority;
+    pcb.start_time = -1;
+    pcb.finish_time = -1;
+    pcb.last_stopped = -1;
+    pcb.remaining_time = p.runtime;
+    pcb.waiting_time = 0;
+    pcb.state = 'W';
+    pcb.pid = -1;
+    pcb.next = NULL;
+
+    return pcb;
+}
+
+struct PerfVars initialize_perf()
+{
+    struct PerfVars perf;
+
+    perf.avg_Waiting = 0.0;
+    perf.avg_WTA = 0.0;
+    perf.first_arrival = -1;
+    perf.num_procs = 0;
+    perf.std_WTA = 0.0;
+    perf.total_runtime = 0;
+    perf.finish_time = -1;
+    perf.M2_WTA = 0.0;
+    perf.welford_mean_WTA = 0.0;
+
+    return perf;
+}
+
+void runProcess(struct PCB *pcb, FILE *log_file)
+{
+    *shmRT_addr = pcb->remaining_time;
+    if (pcb->start_time == -1)
+    {
+        pcb->start_time = getClk();
+        pcb->waiting_time = pcb->start_time - pcb->arrival;
+    }
+
+    if (pcb->pid == -1)
+    {
+        pcb->lState = START;
+        log_data(log_file, pcb);
+        pid_t pid = fork();
+        if (pid == -1)
+        {
+            perror("fork failed");
+            exit(1);
+        }
+
+        if (pid == 0)
+        {
+            char runtime_str[16];
+            char shm_str[16];
+            char sem_str[16];
+
+            snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
+            snprintf(shm_str, sizeof(shm_str), "%d", shmRT_id);
+            snprintf(sem_str, sizeof(sem_str), "%d", sem_id);
+            execl("../outFiles/process.out", "process.out", runtime_str, shm_str, sem_str,
+                  (char *)NULL);
+            perror("execl failed");
+            _exit(1);
+        }
+
+        pcb->pid = pid;
+    }
+    else
+    {
+        if (pcb->last_stopped >= 0)
+            pcb->waiting_time += (getClk() - pcb->last_stopped);
+        pcb->lState = RESUME;
+        log_data(log_file, pcb);
+        kill(pcb->pid, SIGCONT);
+    }
+    pcb->state = 'R';
+}
+
+void cleanup(int signum)
+{
+    (void)signum;
+    msgctl(msgq_id, IPC_RMID, NULL);
+    semctl(sem_id, 0, IPC_RMID);
+    shmdt(shmRT_addr);
+    shmctl(shmRT_id, IPC_RMID, NULL);
+    destroyClk(false);
+    exit(0);
+}
+
+void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
+             int *next_preemtion_time, FILE *log_file)
+{
+    if (*currProcess != NULL)
+    {
+        /* Set up the preemption deadline when a process first starts its slice */
+        if (*next_preemtion_time == -1)
+        {
+            *next_preemtion_time = getClk() + q;
+            return;
+        }
+
+        /* Check if the quantum has expired */
+        if ((isEmpty(readyQueue) || readyQueue->front->pcb->arrival == getClk()) && getClk() >= *next_preemtion_time)
+        {
+            *next_preemtion_time = getClk() + q;
+            return;
+        }
+
+        if (getClk() >= *next_preemtion_time)
+        {
+            /* Preempt: stop the current process and put it back in the queue */
+            (*currProcess)->lState = STOP;
+            (*currProcess)->remaining_time = *shmRT_addr;
+            kill((*currProcess)->pid, SIGSTOP);
+
+            log_data(log_file, *currProcess);
+            (*currProcess)->last_stopped = getClk();
+
+            (*currProcess)->remaining_time = *shmRT_addr;
+            (*currProcess)->state = 'W';
+
+            enqueue(readyQueue, (*currProcess));
+            wait_N_secs(1, 1);
+            *next_preemtion_time = getClk() + q;
+
+            /* Pick the next process from the queue */
+            *currProcess = dequeue(readyQueue);
+            runProcess(*currProcess, log_file);
+            return;
+        }
+    }
+    else if (!isEmpty(readyQueue))
+    {
+        *currProcess = dequeue(readyQueue);
+        runProcess(*currProcess, log_file);
+        *next_preemtion_time = getClk() + q;
+        return;
+    }
+}
+
+void initialize_PCB(struct PCB *pcb)
+{
+    
+}
+
+void wait_N_secs(int pen, int N)
+{
+    int curr = getClk() + pen;
+    if (N > 0)
+    {
+        /* The current tick was already counted before entering this wait.
+         * Only account for the additional skipped ticks. */
+        int skipped_ticks = (pen > 0) ? (pen - 1) : 0;
+        (void)skipped_ticks;
+    }
+    while (curr > getClk())
+    {
+    }
+}
+
+void create_log_files(FILE **log_file, FILE **perf_file)
+{
+    mkdir("../logs/", 0755);
+
+    *log_file = fopen("../logs/scheduler.log", "w");
+    *perf_file = fopen("../logs/scheduler.perf", "w");
+
+    setvbuf(*log_file, NULL, _IONBF, 0);
+
+    return;
+}
+
+void write_comment_line(FILE *log_file)
+{
+    char *comment = "#At\ttime\tx\tprocess\ty\tstate\tarr\tw\ttotal\tz\tremain\ty\twait\tk\n";
+    fprintf(log_file, "%s", comment);
+}
+
+void log_data(FILE *log_file, PCB *pcb)
+{
+    char stateStr[100];
+    bool finishFlag = 0;
+    int log_time = getClk();
+
+    // #At time x process y state arr w total z remain y wait k
+    // time: getClk(), process: id, state: lState, arr: arrival, total: runtime, remain: remaining_time, wait: waiting_time
+
+    switch (pcb->lState)
+    {
+    case START:
+        strcpy(stateStr, "started");
+        break;
+    case FINISH:
+        strcpy(stateStr, "finished");
+        finishFlag = 1;
+        if (pcb->finish_time != -1)
+            log_time = pcb->finish_time;
+        break;
+    case STOP:
+        strcpy(stateStr, "stopped");
+        break;
+    case RESUME:
+        strcpy(stateStr, "resumed");
+        break;
+    default:
+        strcpy(stateStr, "state");
+        break;
+    }
+
+    fprintf(log_file, "At\ttime\t%d\tprocess\t%d\t%s\tarr\t%d\ttotal\t%d\tremain\t%d\twait\t%d", log_time, pcb->id, stateStr, pcb->arrival, pcb->runtime, pcb->remaining_time, pcb->waiting_time);
+    if (finishFlag)
+    {
+        int TA = pcb->finish_time - pcb->arrival;
+        float WTA = ((float)TA) / pcb->runtime;
+        fprintf(log_file, "\tTA\t%d\tWTA\t%.2f", TA, WTA);
+    }
+    fprintf(log_file, "\n");
+}
+
+void write_perf(struct PerfVars perf, FILE *perf_file)
+{
+    if (perf.num_procs == 0 || perf.finish_time <= perf.first_arrival)
+    {
+        fprintf(perf_file, "CPU utilization = 0.00%%\n");
+        fprintf(perf_file, "Avg WTA = 0.00\n");
+        fprintf(perf_file, "Avg Waiting = 0.00\n");
+        fprintf(perf_file, "Std WTA = 0.00\n");
+        return;
+    }
+
+    float cpu_util = (float)perf.total_runtime * 100.0 / (float)(perf.finish_time - perf.first_arrival);
+    perf.avg_WTA /= perf.num_procs;
+    perf.avg_Waiting /= perf.num_procs;
+
+    float std_WTA = sqrtf(perf.M2_WTA / perf.num_procs);
+    fprintf(perf_file, "CPU utilization = %.2f%%\n", cpu_util);
+    fprintf(perf_file, "Avg WTA = %.2f\n", perf.avg_WTA);
+    fprintf(perf_file, "Avg Waiting = %.2f\n", perf.avg_Waiting);
+    fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
+}

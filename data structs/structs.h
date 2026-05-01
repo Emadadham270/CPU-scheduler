@@ -54,6 +54,9 @@ typedef struct PCB
   enum logState lState; // This is used for logging purposes
 
   struct PCB *next;
+
+  int frame_index; // This is used to keep track of the frame index in the page table
+  
 } PCB;
 
 typedef struct PCBNode
@@ -89,5 +92,29 @@ union Semun
   unsigned short *array;
   struct seminfo *__buf;
 };
+
+typedef struct PTE
+{
+
+  short R;
+  short M;
+  int frame_address;
+  int valid;
+
+} PTE;
+
+typedef struct Frame
+{
+  short R;
+  short M;
+  int process_id;
+  int state;
+  PTE *pte;
+  short occupied;
+  int data;
+  
+} Frame;
+
+
 
 #endif
