@@ -1,13 +1,14 @@
 #include "../headers.h"
 #include "process.h"
 #include "../data structs/structs.h"
+
 /* Modify this file as needed*/
 int remainingtime;
 int shmRT_id;
 int sem_id;
 volatile sig_atomic_t prev_clk_tick;
-
-
+int running_time = 0;
+int req_index = 0;
 void on_cont(int signum)
 {
     (void)signum;
@@ -84,9 +85,37 @@ int main(int argc, char *argv[])
         perror("Error in attaching the shm of RT");
         exit(-1);
     }
+    FILE *file = fopen("requests.txt", "r");
+    if (file == NULL)
+    {
+        perror("Error opening file");
+        exit(-1);
+    }
+    request array[100];
+    
+    int i = 0;
 
-
-
+    while (fscanf(file, "%d %d %c", &array[i].tick, &array[i].address, &array[i].operation) == 3)
+    {
+        i++;
+    }
+    char line[1024];
+     while (fgets(line, 1024, file))
+    {
+        if (line[0] == '#' || line[0] == '\n')
+            continue;
+        
+        sscanf(line, "%d %d %c", &array[i].tick, &array[i].address, &array[i].operation);
+        
+    }
+    //make array of requests [size 100] 
+    //fill it from the file requests.txt at the input 
+    FILE *file = fopen("requests.txt", "r");
+    if (file == NULL)
+    {
+        perror("Error opening file");
+        exit(-1);
+    }
 
     // prev_clk_tick = getClk();
     while (remainingtime> 0)
@@ -95,7 +124,13 @@ int main(int argc, char *argv[])
         down(sem_id);
         remainingtime--;
         *shmRT_addr=remainingtime;
-        
+        running_time++;
+        if(running_time==array[req_index].tick)
+        {
+            
+            // make the request logic here 
+            req_index++;
+        }
         
     }
 

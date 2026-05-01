@@ -9,6 +9,8 @@ Queue *currentPCBs;
 
 struct PCB *currProcess = NULL;
 int quantum;
+int k = 0;
+int quantums_passed = 0;
 int processFinishedSignal = 0;
 int next_preemtion_time = -1;
 int *shmRT_addr;
@@ -51,8 +53,6 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-
-
     union Semun semun;
     semun.val = 0;
     if (semctl(sem_id, 0, SETVAL, semun) == -1)
@@ -69,6 +69,8 @@ int main(int argc, char *argv[])
     readyQueue = createQueue();
     char *e;
     quantum = strtol(argv[1], &e, 10);
+    char *e2;
+    k = strtol(argv[2], &e2, 10);
 
     FILE *log_file, *perf_file;
     create_log_files(&log_file, &perf_file);
@@ -148,7 +150,7 @@ int main(int argc, char *argv[])
                         {
                             struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
                             *pcb = createPCB(msg);
-                            //add the logic of the first arrival 
+                            // add the logic of the first arrival
 
                             pcb->frame_index = -1;
                             if (perf.first_arrival == -1)
@@ -183,6 +185,12 @@ int main(int argc, char *argv[])
             // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
             if (now > 0)
                 RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
+
+            // Check if we should clear R bits every k quantums
+            if (k > 0 && quantums_passed > 0 && quantums_passed % k == 0)
+            {
+                clear_recent();
+            }
 
             if (currProcess != NULL)
             {

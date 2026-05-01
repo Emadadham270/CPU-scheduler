@@ -56,7 +56,9 @@ typedef struct PCB
   struct PCB *next;
 
   int frame_index; // This is used to keep track of the frame index in the page table
-  
+  int base;
+  int limit;
+
 } PCB;
 
 typedef struct PCBNode
@@ -95,12 +97,10 @@ union Semun
 
 typedef struct PTE
 {
-
   short R;
   short M;
   int frame_address;
   int valid;
-
 } PTE;
 
 typedef struct Frame
@@ -114,11 +114,17 @@ typedef struct Frame
   int vpage;
 } Frame;
 
-typedef struct
+typedef struct request
+{
+  int tick;
+  int address;
+  char operation; // 'R' for read, 'W' for write
+} request;
+
+typedef struct VirtualAddress
 {
     int page;
     int offset;
 } VirtualAddress;
-
 
 #endif
