@@ -62,8 +62,6 @@ typedef struct PCB
 
 } PCB;
 
-
-
 typedef struct PCBNode
 {
   PCB *pcb;
@@ -119,16 +117,16 @@ typedef struct Frame
 
 typedef struct request
 {
+  long mtype; // This is used for message queue, should be set to 1 for requests
   int tick;
   int address;
   char operation; // 'R' for read, 'W' for write
-  long mtype; // This is used for message queue, should be set to 1 for requests
 } request;
 
 typedef struct VirtualAddress
 {
-    int page;
-    int offset;
+  int page;
+  int offset;
 } VirtualAddress;
 
 #endif

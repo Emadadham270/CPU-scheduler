@@ -55,14 +55,14 @@ int main(int argc, char *argv[])
     initClk();
     setvbuf(stdout, NULL, _IONBF, 0);
     signal(SIGCONT, on_cont);
-    
-    if (argc < 4)
+
+    if (argc < 5)
     {
         perror("Error with args");
         kill(getppid(), SIGUSR1);
         exit(-1);
     }
-   
+
     // We will pass the remaining time as an argument from parent
     if (!to_int(argv[1], &remainingtime))
     {
@@ -82,13 +82,12 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-     if (!to_int(argv[4], &id))
+    if (!to_int(argv[4], &id))
     {
         kill(getppid(), SIGUSR1);
         exit(-1);
     }
 
-  
     int *shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
     if ((long)shmRT_addr == -1)
     {
@@ -96,8 +95,8 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    //make array of requests [size 100] 
-    //fill it from the file requests.txt at the input 
+    // make array of requests [size 100]
+    // fill it from the file requests.txt at the input
     char filename[256];
     snprintf(filename, sizeof(filename), "../input/requests%d.txt", id);
     FILE *file = fopen(filename, "r");
@@ -116,13 +115,21 @@ int main(int argc, char *argv[])
             continue;
 
         // char binary_str[64];
+        if (i >= 100)
+        {
+            fprintf(stderr, "Too many requests in %s, ignoring extra lines\n", filename);
+            break;
+        }
+
         sscanf(line, "%d %d %c", &reqs_arr[i].tick, &reqs_arr[i].address, &reqs_arr[i].operation);
+        reqs_arr[i].mtype = 1;
         i++;
         // reqs_arr[i].address = (int)strtol(binary_str, NULL, 2);
     }
+    int num_requests = i;
 
     int key_id = ftok("../keyFile", 70);
-    req_msgq = msgget(key_id, 0666|IPC_CREAT);
+    req_msgq = msgget(key_id, 0666 | IPC_CREAT);
 
     if (req_msgq == -1)
     {
@@ -130,21 +137,19 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-
     // prev_clk_tick = getClk();
-    while (remainingtime> 0)
+    while (remainingtime > 0)
     {
 
         down(sem_id);
         printf("Process %d at time %d: remaining time = %d\n", id, getClk(), remainingtime);
         remainingtime--;
-        *shmRT_addr=remainingtime;
+        *shmRT_addr = remainingtime;
         running_time++;
-        if(running_time==reqs_arr[req_index].tick)
+        if (req_index < num_requests && running_time == reqs_arr[req_index].tick)
         {
             printf("Process %d sending request at time %d: address=%d, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
-             
-            // make the request logic here 
+
             if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(long), 0) == -1)
             {
                 perror("Error in msgsnd");
@@ -152,12 +157,10 @@ int main(int argc, char *argv[])
 
             req_index++;
         }
-        
     }
-
 
     destroyClk(false);
     kill(getppid(), SIGUSR1);
-    
+
     return 0;
 }

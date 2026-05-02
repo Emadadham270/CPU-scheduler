@@ -78,9 +78,20 @@ int main(int argc, char *argv[])
     char *e2;
     k = strtol(argv[2], &e2, 10);
 
-    
+    FILE *log_file, *perf_file;
+    FILE *memory_file;
     create_log_files(&log_file, &perf_file);
     write_comment_line(log_file);
+
+    mkdir("../logs", 0755);
+    memory_file = fopen("../logs/memory.log", "w");
+    if (memory_file == NULL)
+    {
+        perror("Error opening memory log");
+        exit(1);
+    }
+    setvbuf(memory_file, NULL, _IONBF, 0);
+    set_memory_log(memory_file);
 
     int last_tick = -1;
 
@@ -88,10 +99,13 @@ int main(int argc, char *argv[])
 
     while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
     {
-
         int now = getClk();
         if (now == last_tick)
             continue; // spin until next tick
+
+        printf("[rr_scheduler] tick=%d last=%d receiving=%d readyEmpty=%d currProcess=%p currPid=%d\n",
+               now, last_tick, receivingProcesses, isEmpty(readyQueue), (void *)currProcess,
+               currProcess ? currProcess->pid : -1);
 
         last_tick = now;
 
@@ -124,6 +138,7 @@ int main(int argc, char *argv[])
 
             if (currProcess != NULL)
             {
+                printf("[rr_scheduler] granting sem to pid %d at tick %d\n", currProcess->pid, now);
                 union Semun s;
                 s.val = 0;
                 semctl(sem_id, 0, SETVAL, s);
@@ -131,6 +146,7 @@ int main(int argc, char *argv[])
             }
         }
     }
+    printf("[rr_scheduler] exiting main loop: readyEmpty=%d receivingProcesses=%d currProcess=%p\n", isEmpty(readyQueue), receivingProcesses, (void *)currProcess);
     // upon termination release the clock resources.
     msgctl(req_msgq, IPC_RMID, NULL);
     msgctl(msgq_id, IPC_RMID, NULL);
@@ -140,5 +156,6 @@ int main(int argc, char *argv[])
     shmctl(shmRT_id, IPC_RMID, NULL);
     fclose(log_file);
     fclose(perf_file);
+    fclose(memory_file);
     destroyClk(false);
 }
