@@ -122,6 +122,7 @@ typedef struct request
   int tick;
   int address;
   char operation; // 'R' for read, 'W' for write
+  long mtype; // This is used for message queue, should be set to 1 for requests
 } request;
 
 typedef struct VirtualAddress

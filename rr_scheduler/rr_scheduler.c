@@ -1,6 +1,5 @@
 #include "rr_scheduler.h"
 
-
 int msgq_id;
 int req_msgq;
 int sem_id;
@@ -27,13 +26,13 @@ int lag = 0;
 int main(int argc, char *argv[])
 {
     (void)argc;
-    key_t key_id,req_key_id;
+    key_t key_id, req_key_id;
     signal(SIGINT, cleanup);
     signal(SIGUSR1, onProcessFinished);
     key_id = ftok("../keyFile", 65);
     req_key_id = ftok("../keyFile", 70);
     msgq_id = msgget(key_id, 0666);
-    req_msgq = msgget(req_key_id, 0666|IPC_CREAT);
+    req_msgq = msgget(req_key_id, 0666 | IPC_CREAT);
     perf = initialize_perf();
 
     shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
@@ -70,6 +69,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
     readyQueue = createQueue();
+    currentPCBs = createQueue();
     char *e;
     quantum = strtol(argv[1], &e, 10);
     char *e2;
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
                             if (perf.first_arrival == -1)
                                 perf.first_arrival = pcb->arrival;
                             enqueue(readyQueue, pcb);
-                            enqueue(currentPCBs,pcb);
+                            enqueue(currentPCBs, pcb);
                         }
                         else if (msg.mtype == 2)
                         {
@@ -190,10 +190,11 @@ int main(int argc, char *argv[])
             }
 
             // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
-            if(lag)
+            if (lag)
             {
                 lag = 0;
-            }else if(now > 0)
+            }
+            else if (now > 0)
                 RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
 
             // Check if we should clear R bits every k quantums
@@ -212,6 +213,7 @@ int main(int argc, char *argv[])
         }
     }
     // upon termination release the clock resources.
+    msgctl(req_msgq, IPC_RMID, NULL);
     msgctl(msgq_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
     write_perf(perf, perf_file);

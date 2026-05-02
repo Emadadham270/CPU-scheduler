@@ -14,6 +14,7 @@ Frame RAM[MEM_SIZE];
 VirtualAddress parse_virtual_address(int address)
 {
     // convert binary digits (stored as int) to integer value
+    // 1000000000
     int addr = 0;
     while (address != 0)
     {
