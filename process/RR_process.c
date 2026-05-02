@@ -138,11 +138,14 @@ int main(int argc, char *argv[])
     {
 
         down(sem_id);
+        printf("Process %d at time %d: remaining time = %d\n", id, getClk(), remainingtime);
         remainingtime--;
         *shmRT_addr=remainingtime;
         running_time++;
         if(running_time==reqs_arr[req_index].tick)
         {
+            printf("Process %d sending request at time %d: address=%d, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
+             
             // make the request logic here 
             if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(int), 0) == -1)
             {

@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
                     {
                         if (msg.mtype == 1)
                         {
+                            printf("Received new process with id %d at time %d\n", msg.id, getClk());
                             struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
                             *pcb = createPCB(msg);
                             // add the logic of the first arrival
