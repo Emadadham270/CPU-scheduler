@@ -14,6 +14,8 @@ extern int sem_id;
 extern int receivingProcesses;
 extern Queue *readyQueue;
 extern Queue *currentPCBs;
+extern Queue *blockQueue;
+
 extern struct PCB *currProcess;
 extern int quantum;
 extern int k;
@@ -24,6 +26,7 @@ extern int *shmRT_addr;
 extern int shmRT_id;
 extern int context_switch_until;
 extern perfVars perf;
+extern FILE *log_file, *perf_file;
 
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
@@ -39,6 +42,8 @@ void write_perf(struct PerfVars perf, FILE *perf_file);
 void down(int sem);
 void up(int sem);
 void handleRequests();
+void checkBlockEnd();
 void initialize_PCB(PCB *pcb);
-
+void handleFinishedProcesses();
+void receiveProcesses();
 #endif // RR_SCHEDULER_H

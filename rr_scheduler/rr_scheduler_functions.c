@@ -105,7 +105,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
     if (pcb->pid == -1)
     {
         pcb->lState = START;
-        log_data(log_file, pcb);
+        log_data(pcb);
         // call function to make the init logic ( put the pt table at a free frame and put pt[0] at a free frame
 
         pid_t pid = fork();
@@ -140,7 +140,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         if (pcb->last_stopped >= 0)
             pcb->waiting_time += (getClk() - pcb->last_stopped);
         pcb->lState = RESUME;
-        log_data(log_file, pcb);
+        log_data(pcb);
         kill(pcb->pid, SIGCONT);
     }
     pcb->state = 'R';
@@ -149,6 +149,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
 void cleanup(int signum)
 {
     (void)signum;
+    msgctl(req_msgq, IPC_RMID, NULL);
     msgctl(msgq_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
     shmdt(shmRT_addr);
@@ -183,7 +184,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             (*currProcess)->remaining_time = *shmRT_addr;
             kill((*currProcess)->pid, SIGSTOP);
 
-            log_data(log_file, *currProcess);
+            log_data(*currProcess);
             (*currProcess)->last_stopped = getClk();
 
             (*currProcess)->remaining_time = *shmRT_addr;
@@ -245,7 +246,7 @@ void write_comment_line(FILE *log_file)
     fprintf(log_file, "%s", comment);
 }
 
-void log_data(FILE *log_file, PCB *pcb)
+void log_data(PCB *pcb)
 {
     char stateStr[100];
     bool finishFlag = 0;
@@ -286,7 +287,7 @@ void log_data(FILE *log_file, PCB *pcb)
     fprintf(log_file, "\n");
 }
 
-void write_perf(struct PerfVars perf, FILE *perf_file)
+void write_perf()
 {
     if (perf.num_procs == 0 || perf.finish_time <= perf.first_arrival)
     {
@@ -312,7 +313,7 @@ void handleRequests(int *lag)
 {
 
     request req;
-    if(msgrcv(req_msgq, &req,sizeof(request) , 0, IPC_NOWAIT)==-1)
+    if(msgrcv(req_msgq, &req,sizeof(request)-sizeof(long) , 0, IPC_NOWAIT)==-1)
     {
         printf("No request received at tick %d\n", getClk());
         return;
@@ -331,12 +332,125 @@ void handleRequests(int *lag)
         }
         else if(result==0) {
             printf("Request is valid but page is not in RAM. Handling page fault...\n");
-            fault_handler(currProcess->id,VA.page,1);
+            enqueue(blockQueue,currProcess);
+            int id =currProcess->id;
+            free(currProcess);
+            fault_handler(id,VA.page,1);
         }
         else {
             // Handle invalid address
             return;
         }
         
+    }
+}
+
+
+void checkBlockEnd()
+{
+    // if it takes much time to loop we might edit it to priority queue
+    PCBNode* node=blockQueue->front;
+    while(node)
+    {
+        // to think about : should it un block at getClk() or  getClk()+1 ?
+        if(node->pcb->unblock_at==getClk())
+        {
+            dequeue_by_id(blockQueue,node->pcb->id);
+            enqueue(readyQueue,node->pcb->id);
+        }
+        node=node->next;
+    }
+
+}
+
+void handleFinishedProcesses()
+{
+    if (currProcess != NULL && processFinishedSignal)
+        {
+            int status;
+            processFinishedSignal = 0;
+
+            while (waitpid(currProcess->pid, &status, 0) == -1)
+            {
+                if (errno != EINTR)
+                {
+                    perror("waitpid failed");
+                    break;
+                }
+            }
+
+            currProcess->finish_time = getClk();
+            currProcess->remaining_time = 0;
+            currProcess->state = 'F';
+            context_switch_until = currProcess->finish_time + 1;
+
+            currProcess->remaining_time = *shmRT_addr;
+            // log data to scheduler.log
+            currProcess->lState = FINISH;
+            log_data(currProcess);
+
+            // Add WTA and Waiting to perf struct
+            float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
+            perf.avg_WTA += WTA;
+
+            // perform rolling standard deviation
+            // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+            perf.num_procs++;
+            float delta = WTA - perf.welford_mean_WTA;
+            perf.welford_mean_WTA += delta / perf.num_procs;
+            float delta2 = WTA - perf.welford_mean_WTA;
+            perf.M2_WTA += delta * delta2;
+
+            perf.avg_Waiting += currProcess->waiting_time;
+            perf.total_runtime += currProcess->runtime;
+            perf.finish_time = currProcess->finish_time;
+            dequeue_by_id(currentPCBs, currProcess->id);
+            free(currProcess);
+            currProcess = NULL;
+            next_preemtion_time = -1;
+        }
+}
+
+void receiveProcesses()
+{
+    int now = getClk();
+    while (1)
+    {
+        processData msg;
+        if (msgrcv(msgq_id, &msg, sizeof(processData) - sizeof(long), -5, 0) != -1)
+        {
+            if (msg.mtype == 1)
+            {
+                printf("Received new process with id %d at time %d\n", msg.id, getClk());
+                struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
+                *pcb = createPCB(msg);
+                // add the logic of the first arriv
+                pcb->frame_index = -1;
+                if (perf.first_arrival == -1)
+                    perf.first_arrival = pcb->arrival;
+                enqueue(readyQueue, pcb);
+                enqueue(currentPCBs, pcb);
+            }
+            else if (msg.mtype == 2)
+            {
+                if (msg.arrival >= now)
+                {
+                    break;
+                }
+            }
+            else if (msg.mtype == 5)
+            {
+                receivingProcesses = 0;
+                break;
+            }
+        }
+        else
+        {
+            if (errno != EINTR)
+            {
+                perror("msgrcv error");
+                break;
+            }
+        }
     }
 }
