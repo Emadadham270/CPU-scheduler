@@ -60,7 +60,9 @@ short check(PCB *pcb, int vpt_address, char req_type)
         return 0; // False
     }
 }
-// directly put the page in the frame without checking anything
+
+
+//directly put the page in the frame without checking anything
 void put_page_in_frame(int pid, int page_number, int frame_index)
 {
     RAM[frame_index].occupied = 1;
@@ -147,11 +149,11 @@ void swap(int id, int frameIndex, int page, int type)
     {
         owner->state = 'B';
         owner->unblock_at = block_end_time;
-    }
-    else
+    } else 
     {
-        page -= 64;
+     page-=64;
     }
+    
     RAM[owner->frame_index].pte[page].valid = 1;
     RAM[owner->frame_index].pte[page].frame_address = frameIndex;
     RAM[owner->frame_index].pte[page].R = 1;
@@ -177,8 +179,13 @@ void fault_handler(int pid, int page_num, int type, int raw_address)
     {
         if (!RAM[i].occupied)
         {
-            victim_index = i;
-            break;
+            put_page_in_frame(pid,page_num,i);
+            if (type != 0 && memory_log)
+          {
+              fprintf(memory_log, "Free Physical page %d allocated\n", victim_index);
+              fprintf(memory_log, "At time %d disk address %d for process %d is loaded into memory page %d.\n", getClk(), page_num, pid, victim_index);
+          }
+            return;
         }
         if (RAM[i].pte) // pte != null ,that means it is a page table
             continue;
@@ -195,21 +202,7 @@ void fault_handler(int pid, int page_num, int type, int raw_address)
         fprintf(memory_log, "PageFault upon VA %d from process %d\n", raw_address, pid);
     }
 
-    if (victim_index == -1)
-        return;
-
-    if (cls < 4)
-        swap(pid, victim_index, page_num, type);
-    else
-    {
-        // we allocate the new page in this frame
-        put_page_in_frame(pid, page_num, victim_index);
-        if (type != 0 && memory_log)
-        {
-            fprintf(memory_log, "Free Physical page %d allocated\n", victim_index);
-            fprintf(memory_log, "At time %d disk address %d for process %d is loaded into memory page %d.\n", getClk(), page_num, pid, victim_index);
-        }
-    }
+    swap(pid,victim_index,page_num,type);
 }
 
 void clear_recent()
