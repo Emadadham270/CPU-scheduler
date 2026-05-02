@@ -64,6 +64,8 @@ struct PCB createPCB(processData p)
     pcb.state = 'W';
     pcb.pid = -1;
     pcb.next = NULL;
+    pcb.limit = p.limit;
+    pcb.base = p.base;
 
     return pcb;
 }
@@ -87,9 +89,8 @@ struct PerfVars initialize_perf()
 
 void initialize_PCB(PCB *pcb)
 {
-    fault_handler(pcb->id,64,0);
-    fault_handler(pcb->id,64,1);
-    
+    fault_handler(pcb->id, 64, 0, 0);
+    fault_handler(pcb->id, 64, 1, 0);
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)
@@ -149,6 +150,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
 void cleanup(int signum)
 {
     (void)signum;
+    msgctl(req_msgq, IPC_RMID, NULL);
     msgctl(msgq_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
     shmdt(shmRT_addr);
@@ -209,8 +211,6 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
         return;
     }
 }
-
-
 
 void wait_N_secs(int pen, int N)
 {
@@ -312,31 +312,29 @@ void handleRequests(int *lag)
 {
 
     request req;
-    if(msgrcv(req_msgq, &req,sizeof(request) , 0, IPC_NOWAIT)==-1)
+    if (msgrcv(req_msgq, &req, sizeof(request) - sizeof(long), 0, IPC_NOWAIT) == -1)
     {
-        printf("No request received at tick %d\n", getClk());
+        printf("[rr_scheduler::handleRequests] No request received at tick %d\n", getClk());
         return;
     }
-    else 
+    printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
+    VirtualAddress VA = parse_virtual_address(req.address);
+    int result = check(currProcess, VA.page, req.operation);
+
+    if (result == 1)
     {
-        printf("Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
-        VirtualAddress VA=parse_virtual_address(req.address);
-        int result = check(currProcess, VA.page,req.operation);
-        
-        if(result==1)
-        {
-            printf("Request is valid and page is in RAM.\n");
-            *lag = 1;
-            
-        }
-        else if(result==0) {
-            printf("Request is valid but page is not in RAM. Handling page fault...\n");
-            fault_handler(currProcess->id,VA.page,1);
-        }
-        else {
-            // Handle invalid address
-            return;
-        }
-        
+        printf("[rr_scheduler::handleRequests] Request is valid and page is in RAM.\n");
+        *lag = 1;
+    }
+    else if (result == 0)
+    {
+        printf("[rr_scheduler::handleRequests] Request is valid but page is not in RAM. Handling page fault...\n");
+        fault_handler(currProcess->id, VA.page, 1, req.address);
+    }
+    else
+    {
+        // Handle invalid address
+        printf("[rr_scheduler::handleRequests] Request is invalid. Page address %d is out of bounds for process %d with limit %d.\n", VA.page, currProcess->id, currProcess->limit);
+        return;
     }
 }
