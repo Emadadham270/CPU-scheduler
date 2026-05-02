@@ -57,7 +57,9 @@ int main(int argc, char *argv[])
             continue;
         processData p;
         p.mtype = 1;
-        sscanf(line, "%d %d %d %d %d %d", &p.id, &p.arrival, &p.runtime, &p.priority, &p.base, &p.limit);
+        if (sscanf(line, "%d %d %d %d %d %d",
+                   &p.id, &p.arrival, &p.runtime, &p.priority, &p.base, &p.limit) != 6)
+            continue;
         if (p.runtime > 0)
             pg_enqueue(q, p);
     }

@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
         remainingtime--;
         *shmRT_addr = remainingtime;
         running_time++;
-        if (req_index < num_requests && running_time == reqs_arr[req_index].tick)
+        if (remainingtime&&req_index < num_requests && running_time == reqs_arr[req_index].tick)
         {
             printf("Process %d sending request at time %d: address=%d, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
 

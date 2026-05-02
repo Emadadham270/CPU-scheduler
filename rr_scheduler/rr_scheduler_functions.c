@@ -66,6 +66,10 @@ struct PCB createPCB(processData p)
     pcb.next = NULL;
     pcb.limit = p.limit;
     pcb.base = p.base;
+    pcb.frame_index = -1;
+    pcb.unblock_at = -1;
+    pcb.pending_page = -1;
+    pcb.pending_frame = -1;
 
     return pcb;
 }
@@ -89,8 +93,11 @@ struct PerfVars initialize_perf()
 
 void initialize_PCB(PCB *pcb)
 {
-    fault_handler(pcb->id, 64, 0, 0);
-    fault_handler(pcb->id, 64, 1, 0);
+    if (pcb->frame_index == -1)
+    {
+        fault_handler(pcb->id, 0, 0, 0);
+        fault_handler(pcb->id, 0, 2, 0);
+    }
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)
@@ -105,8 +112,9 @@ void runProcess(struct PCB *pcb, FILE *log_file)
 
     if (pcb->pid == -1)
     {
+        initialize_PCB(pcb);
         pcb->lState = START;
-        log_data(pcb);
+        log_data(log_file, pcb);
         // call function to make the init logic ( put the pt table at a free frame and put pt[0] at a free frame
 
         pid_t pid = fork();
@@ -141,7 +149,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         if (pcb->last_stopped >= 0)
             pcb->waiting_time += (getClk() - pcb->last_stopped);
         pcb->lState = RESUME;
-        log_data(pcb);
+        log_data(log_file, pcb);
         kill(pcb->pid, SIGCONT);
     }
     pcb->state = 'R';
@@ -150,6 +158,30 @@ void runProcess(struct PCB *pcb, FILE *log_file)
 void cleanup(int signum)
 {
     (void)signum;
+    if (currProcess != NULL && currProcess->pid > 0)
+        kill(currProcess->pid, SIGKILL);
+
+    if (readyQueue != NULL)
+    {
+        for (PCBNode *node = readyQueue->front; node != NULL; node = node->next)
+            if (node->pcb != NULL && node->pcb->pid > 0)
+                kill(node->pcb->pid, SIGKILL);
+    }
+
+    if (blockQueue != NULL)
+    {
+        for (PCBNode *node = blockQueue->front; node != NULL; node = node->next)
+            if (node->pcb != NULL && node->pcb->pid > 0)
+                kill(node->pcb->pid, SIGKILL);
+    }
+
+    if (currentPCBs != NULL)
+    {
+        for (PCBNode *node = currentPCBs->front; node != NULL; node = node->next)
+            if (node->pcb != NULL && node->pcb->pid > 0)
+                kill(node->pcb->pid, SIGKILL);
+    }
+
     msgctl(req_msgq, IPC_RMID, NULL);
     msgctl(msgq_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
@@ -185,7 +217,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             (*currProcess)->remaining_time = *shmRT_addr;
             kill((*currProcess)->pid, SIGSTOP);
 
-            log_data(*currProcess);
+            log_data(log_file, *currProcess);
             (*currProcess)->last_stopped = getClk();
 
             (*currProcess)->remaining_time = *shmRT_addr;
@@ -245,7 +277,7 @@ void write_comment_line(FILE *log_file)
     fprintf(log_file, "%s", comment);
 }
 
-void log_data(PCB *pcb)
+void log_data(FILE *log_file, PCB *pcb)
 {
     char stateStr[100];
     bool finishFlag = 0;
@@ -286,7 +318,7 @@ void log_data(PCB *pcb)
     fprintf(log_file, "\n");
 }
 
-void write_perf()
+void write_perf(struct PerfVars perf, FILE *perf_file)
 {
     if (perf.num_procs == 0 || perf.finish_time <= perf.first_arrival)
     {
@@ -310,6 +342,8 @@ void write_perf()
 
 void handleRequests(int *lag)
 {
+    if (currProcess == NULL)
+        return;
 
     request req;
     if(msgrcv(req_msgq, &req,sizeof(request)-sizeof(long) , 0, IPC_NOWAIT)==-1)
@@ -326,21 +360,33 @@ void handleRequests(int *lag)
     {
         printf("Request is valid and page is in RAM.\n");
         *lag = 1;
+        context_switch_until = getClk() + 1;
+        if (next_preemtion_time != -1)
+            next_preemtion_time++;
 
     }
     else if(result==0) {
         printf("Request is valid but page is not in RAM. Handling page fault...\n");
+        currProcess->lState = STOP;
+        currProcess->remaining_time = *shmRT_addr;
+        log_data(log_file, currProcess);
+        currProcess->last_stopped = getClk();
+        currProcess->state = 'B';
         enqueue(blockQueue,currProcess);
         int id =currProcess->id;
-        free(currProcess);
-        fault_handler(id,VA.page,1);
+        fault_handler(id,VA.page,1,req.address);
+        if (currProcess->pid > 0)
+            kill(currProcess->pid, SIGSTOP);
+        context_switch_until = getClk() + 1;
+        currProcess = NULL;
+        next_preemtion_time = -1;
     }
     else {
         // Handle invalid address
         return;
     }
 
-    }
+    
 }
 
 
@@ -350,16 +396,34 @@ void checkBlockEnd()
     PCBNode* node=blockQueue->front;
     while(node)
     {
+        PCBNode *next = node->next;
         // to think about : should it un block at getClk() or  getClk()+1 ?
         if(node->pcb->unblock_at==getClk())
         {
-            dequeue_by_id(blockQueue,node->pcb->id);
-            enqueue(readyQueue,node->pcb->id);
+            PCB *pcb = dequeue_by_id(blockQueue,node->pcb->id);
+            if (pcb != NULL)
+            {
+                if (pcb->pending_page != -1 && pcb->pending_frame != -1 && memory_log != NULL)
+                {
+                    fprintf(memory_log,
+                            "At time %d disk address %d for process %d is loaded into memory page %d.\n",
+                            getClk(), pcb->base + pcb->pending_page, pcb->id, pcb->pending_frame);
+                    pcb->pending_page = -1;
+                    pcb->pending_frame = -1;
+                }
+                pcb->state = 'W';
+                enqueue(readyQueue,pcb);
+            }
+            
         }
-        node=node->next;
+        node=next;
     }
 
 }
+/*
+
+
+*/
 
 void handleFinishedProcesses()
 {
@@ -385,7 +449,7 @@ void handleFinishedProcesses()
             currProcess->remaining_time = *shmRT_addr;
             // log data to scheduler.log
             currProcess->lState = FINISH;
-            log_data(currProcess);
+            log_data(log_file, currProcess);
 
             // Add WTA and Waiting to perf struct
             float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;

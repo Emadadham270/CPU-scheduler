@@ -41,7 +41,7 @@ void log_data(FILE *log_file, PCB *pcb);
 void write_perf(struct PerfVars perf, FILE *perf_file);
 void down(int sem);
 void up(int sem);
-void handleRequests();
+void handleRequests(int *lag);
 void checkBlockEnd();
 void initialize_PCB(PCB *pcb);
 void handleFinishedProcesses();

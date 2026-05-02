@@ -73,12 +73,12 @@ int main(int argc, char *argv[])
     }
     readyQueue = createQueue();
     currentPCBs = createQueue();
+    blockQueue = createQueue();
     char *e;
     quantum = strtol(argv[1], &e, 10);
     char *e2;
     k = strtol(argv[2], &e2, 10);
 
-    FILE *log_file, *perf_file;
     FILE *memory_file;
     create_log_files(&log_file, &perf_file);
     write_comment_line(log_file);
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 
     initClk();
 
-    while (!isEmpty(readyQueue) || receivingProcesses || currProcess)
+    while (!isEmpty(readyQueue) || !isEmpty(blockQueue) || receivingProcesses || currProcess)
     {
         int now = getClk();
         if (now == last_tick)
@@ -110,7 +110,6 @@ int main(int argc, char *argv[])
         last_tick = now;
 
         // 0. receive requests for the memory
-        // ---------- may change if we will put it at the end of the while loop and refuse req logic will be added then -------------
         handleRequests(&lag);
 
         // 1. check blocked processes
@@ -118,7 +117,6 @@ int main(int argc, char *argv[])
 
         // 2. Handle finished process (before algo, so we don't preempt a dead process)
         handleFinishedProcesses();
-
         if (context_switch_until == -1 || now >= context_switch_until)
         {
             context_switch_until = -1;
@@ -131,7 +129,6 @@ int main(int argc, char *argv[])
                 lag = 0;
             else if (now > 0)
                 RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
-
             // Check if we should clear R bits every k quantums
             if (k > 0 && quantums_passed > 0 && quantums_passed % k == 0)
                 clear_recent();
