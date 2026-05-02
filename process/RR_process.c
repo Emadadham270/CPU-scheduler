@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     //make array of requests [size 100] 
     //fill it from the file requests.txt at the input 
     char filename[256];
-    snprintf(filename, sizeof(filename), "requests%d.txt", id);
+    snprintf(filename, sizeof(filename), "../input/requests%d.txt", id);
     FILE *file = fopen(filename, "r");
     if (file == NULL)
     {
@@ -109,22 +109,20 @@ int main(int argc, char *argv[])
     request reqs_arr[100];
     int i = 0;
 
-    while (fscanf(file, "%d %d %c", &reqs_arr[i].tick, &reqs_arr[i].address, &reqs_arr[i].operation) == 3)
-    {
-        i++;
-    }
     char line[1024];
-     while (fgets(line, 1024, file))
+    while (fgets(line, 1024, file))
     {
         if (line[0] == '#' || line[0] == '\n')
             continue;
-        
+
+        // char binary_str[64];
         sscanf(line, "%d %d %c", &reqs_arr[i].tick, &reqs_arr[i].address, &reqs_arr[i].operation);
-        
+        i++;
+        // reqs_arr[i].address = (int)strtol(binary_str, NULL, 2);
     }
 
     int key_id = ftok("../keyFile", 70);
-    req_msgq = msgget(key_id, 0666|IPC_CREAT| IPC_EXCL);
+    req_msgq = msgget(key_id, 0666|IPC_CREAT);
 
     if (req_msgq == -1)
     {
@@ -147,7 +145,7 @@ int main(int argc, char *argv[])
             printf("Process %d sending request at time %d: address=%d, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
              
             // make the request logic here 
-            if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(int), 0) == -1)
+            if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(long), 0) == -1)
             {
                 perror("Error in msgsnd");
             }
