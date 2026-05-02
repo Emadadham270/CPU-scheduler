@@ -54,6 +54,7 @@ short check(PCB *pcb, int vpt_address,char req_type)
         return 0; // False
     }
 }
+
 //directly put the page in the frame without checking anything
 void put_page_in_frame(int pid, int page_number, int frame_index)
 {
@@ -135,6 +136,7 @@ void swap(int id, int frameIndex,int page,int type)
         owner->unblock_at = block_end_time;
     }else
      page-=64;
+    
     RAM[owner->frame_index].pte[page].valid = 1;
     RAM[owner->frame_index].pte[page].frame_address = frameIndex;
     RAM[owner->frame_index].pte[page].R = 1;
@@ -155,8 +157,8 @@ void fault_handler(int pid,int page_num,int type)
     {
         if(!RAM[i].occupied) 
         {
-            victim_index=i;
-            break;
+            put_page_in_frame(pid,page_num,i);
+            return;
         }
         if(RAM[i].pte) // pte != null ,that means it is a page table 
             continue;
@@ -167,12 +169,7 @@ void fault_handler(int pid,int page_num,int type)
             victim_index=i;
         }
     }
-    if(cls<4)
-        swap(pid,victim_index,page_num,type);
-    else 
-        //we allocate the new page in this frame 
-        put_page_in_frame(pid,page_num,victim_index);
-
+    swap(pid,victim_index,page_num,type);
 }
 
 void clear_recent()
@@ -206,13 +203,3 @@ int validate(PCB *pcb, int address)
 
     return addr/16<=pcb->limit ? addr/16 : -1;
 }
-
-
-
-
-
-
-
-
-
-
