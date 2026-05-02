@@ -10,6 +10,13 @@
 Frame RAM[MEM_SIZE];
 FILE *memory_log = NULL;
 
+static int page_fault_delay(int frame_index)
+{
+    if (frame_index >= 0 && RAM[frame_index].M != 0)
+        return 20;
+    return 10;
+}
+
 void set_memory_log(FILE *log)
 {
     memory_log = log;
@@ -20,14 +27,26 @@ void set_memory_log(FILE *log)
 
 VirtualAddress parse_virtual_address(int address)
 {
-    // convert binary digits (stored as int) to integer value
-    // 1000000000
+    int digits[32] = {0};
+    int count = 0;
     int addr = 0;
-    while (address != 0)
+
+    if (address == 0)
     {
-        addr = addr * 2 + (address % 10);
+        VirtualAddress zero_va;
+        zero_va.page = 0;
+        zero_va.offset = 0;
+        return zero_va;
+    }
+
+    while (address != 0 && count < 32)
+    {
+        digits[count++] = address % 10;
         address /= 10;
     }
+
+    for (int i = count - 1; i >= 0; --i)
+        addr = (addr << 1) | digits[i];
 
     // split into page and offset
     VirtualAddress va;
@@ -65,12 +84,21 @@ short check(PCB *pcb, int vpt_address, char req_type)
 //directly put the page in the frame without checking anything
 void put_page_in_frame(int pid, int page_number, int frame_index)
 {
+    PCB *owner = get_process(pid);
+    if (owner == NULL || owner->frame_index < 0)
+        return;
+
     RAM[frame_index].occupied = 1;
     RAM[frame_index].process_id = pid;
-    RAM[frame_index].pte[page_number].valid = 1;
-    RAM[frame_index].pte[page_number].R = 1;
-    RAM[frame_index].pte[page_number].M = 0;
-    RAM[frame_index].pte[page_number].frame_address = frame_index; // Assuming the frame address is the same as the index for simplicity
+    RAM[frame_index].pte = NULL;
+    RAM[frame_index].R = 1;
+    RAM[frame_index].M = 0;
+    RAM[frame_index].vpage = page_number;
+
+    RAM[owner->frame_index].pte[page_number].valid = 1;
+    RAM[owner->frame_index].pte[page_number].R = 1;
+    RAM[owner->frame_index].pte[page_number].M = 0;
+    RAM[owner->frame_index].pte[page_number].frame_address = frame_index;
 }
 
 // get owner
@@ -94,9 +122,19 @@ PCB *get_process(int id)
 // define the page table of the process at the given frame index
 void define_page_table(int pid, int frame_index)
 {
+    PCB *owner = get_process(pid);
+
     RAM[frame_index].occupied = 1;
     RAM[frame_index].process_id = pid;
+    RAM[frame_index].R = 1;
+    RAM[frame_index].M = 0;
+    RAM[frame_index].vpage = -1;
     RAM[frame_index].pte = (PTE *)malloc(sizeof(PTE) * PAGE_TABLE_SIZE);
+    if (RAM[frame_index].pte == NULL)
+    {
+        perror("malloc failed");
+        exit(1);
+    }
     for (int i = 0; i < PAGE_TABLE_SIZE; i++)
     {
         RAM[frame_index].pte[i].valid = 0;
@@ -104,6 +142,9 @@ void define_page_table(int pid, int frame_index)
         RAM[frame_index].pte[i].M = 0;
         RAM[frame_index].pte[i].frame_address = -1;
     }
+
+    if (owner != NULL)
+        owner->frame_index = frame_index;
 }
 
 // swap the page in the frame with the new page and update the page table of the owner process
@@ -111,47 +152,46 @@ void define_page_table(int pid, int frame_index)
 void swap(int id, int frameIndex, int page, int type)
 {
     // set the delay
-    int block_end_time;
+    int block_end_time = getClk();
     if (page < 64)
-    {
-        if (RAM[frameIndex].M == 0)
-        {
-            block_end_time = getClk() + 10;
-        }
-        else
-        {
-            block_end_time = getClk() + 20;
-        }
-    }
+        block_end_time = getClk() + page_fault_delay(frameIndex);
 
     // update last owner page table
     PCB *old_owner = get_process(RAM[frameIndex].process_id);
-    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].valid = 0;
-    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].frame_address = -1;
-    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].R = 0;
-    RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].M = 0;
+    if (old_owner != NULL && old_owner->frame_index >= 0 && RAM[frameIndex].vpage >= 0)
+    {
+        RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].valid = 0;
+        RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].frame_address = -1;
+        RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].R = 0;
+        RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].M = 0;
+    }
 
     // check if you load a page table or a normal data
 
     if (type == 0)
     {
         define_page_table(id, frameIndex);
+        fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
         return;
     }
 
-    if (memory_log)
+    if (memory_log && RAM[frameIndex].M != 0)
     {
         fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
     }
 
     PCB *owner = get_process(id);
-    if (page < 64)
+    if (owner == NULL)
+        return;
+
+    if (type == 1 && page < 64)
     {
         owner->state = 'B';
         owner->unblock_at = block_end_time;
-    } else 
+    }
+    else if (page >= 64)
     {
-     page-=64;
+        page -= 64;
     }
     
     RAM[owner->frame_index].pte[page].valid = 1;
@@ -164,27 +204,52 @@ void swap(int id, int frameIndex, int page, int type)
     RAM[frameIndex].occupied = 1;
     RAM[frameIndex].vpage = page;
 
-    if (memory_log)
+    if (type == 1)
     {
-        fprintf(memory_log, "At time %d disk address %d for process %d is loaded into memory page %d.\n", getClk(), page, id, frameIndex);
+        owner->pending_page = page;
+        owner->pending_frame = frameIndex;
     }
 }
 // handle faults of reserving data page
 void fault_handler(int pid, int page_num, int type, int raw_address)
 {
-    printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
+    if (type != 2)
+        printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
     int cls = 4;
     int victim_index = -1;
+    PCB *owner = get_process(pid);
+
+    if (type == 1 && owner != NULL && page_num < 64)
+    {
+        owner->state = 'B';
+        owner->unblock_at = getClk() + 10;
+        owner->pending_page = -1;
+        owner->pending_frame = -1;
+    }
+    if (type == 1 && memory_log)
+        fprintf(memory_log, "PageFault upon VA %d from process %d\n", raw_address, pid);
+
     for (int i = 0; i < MEM_SIZE; i++)
     {
         if (!RAM[i].occupied)
         {
-            put_page_in_frame(pid,page_num,i);
-            if (type != 0 && memory_log)
-          {
-              fprintf(memory_log, "Free Physical page %d allocated\n", victim_index);
-              fprintf(memory_log, "At time %d disk address %d for process %d is loaded into memory page %d.\n", getClk(), page_num, pid, victim_index);
-          }
+            if (type == 0)
+                define_page_table(pid, i);
+            else
+            {
+                put_page_in_frame(pid,page_num,i);
+                if (owner != NULL && page_num < 64)
+                    owner->unblock_at = getClk() + page_fault_delay(i);
+            }
+
+            if (type == 1 && memory_log)
+                fprintf(memory_log, "Free Physical page %d allocated\n", i);
+
+            if (type == 1 && owner != NULL)
+            {
+                owner->pending_page = page_num;
+                owner->pending_frame = i;
+            }
             return;
         }
         if (RAM[i].pte) // pte != null ,that means it is a page table
@@ -197,12 +262,8 @@ void fault_handler(int pid, int page_num, int type, int raw_address)
         }
     }
 
-    if (type != 0 && memory_log)
-    {
-        fprintf(memory_log, "PageFault upon VA %d from process %d\n", raw_address, pid);
-    }
-
-    swap(pid,victim_index,page_num,type);
+    if (victim_index != -1)
+        swap(pid,victim_index,page_num,type);
 }
 
 void clear_recent()
