@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include "../data structs/structs.h"
 #include "../data_structures/PCB/Sch_PCB.h"
+#include "../headers.h"
 #include "../MMU/mmu.h"
 #include <stdio.h>
 

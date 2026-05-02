@@ -1,5 +1,5 @@
 #include "rr_scheduler.h"
-#include "../headers.h"
+
 
 int msgq_id;
 int req_msgq;
@@ -23,7 +23,7 @@ void onProcessFinished(int signum)
     (void)signum;
     processFinishedSignal = 1;
 }
-
+int lag = 0;
 int main(int argc, char *argv[])
 {
     (void)argc;
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     key_id = ftok("../keyFile", 65);
     req_key_id = ftok("../keyFile", 70);
     msgq_id = msgget(key_id, 0666);
-    req_msgq = msgget(req_key_id, 0666);
+    req_msgq = msgget(req_key_id, 0666|IPC_CREAT);
     perf = initialize_perf();
 
     shmRT_id = shmget(ftok("../keyfile", 70), 4, IPC_CREAT | 0666);
@@ -64,9 +64,9 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    if (msgq_id == -1 || req_msgq )
+    if (msgq_id == -1 || req_msgq == -1)
     {
-        perror("Error in receive message queue");
+        perror("Error in receive message queue ========");
         exit(-1);
     }
     readyQueue = createQueue();
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 
         // 0. receive requests for the memory
         //---------- may change if we will put it at the end of the while loop and refuse req logic will be added then -------------
-        handleRequests();
+        handleRequests(&lag);
 
         // 1. Handle finished process (before algo, so we don't preempt a dead process)
         if (currProcess != NULL && processFinishedSignal)
@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
                     {
                         if (msg.mtype == 1)
                         {
+                            printf("Received new process with id %d at time %d\n", msg.id, getClk());
                             struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
                             *pcb = createPCB(msg);
                             // add the logic of the first arrival
@@ -189,7 +190,10 @@ int main(int argc, char *argv[])
             }
 
             // 3. Run scheduling algorithm (preempt → re-enqueue → dispatch)
-            if (now > 0)
+            if(lag)
+            {
+                lag = 0;
+            }else if(now > 0)
                 RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
 
             // Check if we should clear R bits every k quantums

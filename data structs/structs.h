@@ -58,8 +58,11 @@ typedef struct PCB
   int frame_index; // This is used to keep track of the frame index in the page table
   int base;
   int limit;
+  int unblock_at; // This is used to keep track of the time when the process will be unblocked in case it gets blocked due to a page fault
 
 } PCB;
+
+
 
 typedef struct PCBNode
 {

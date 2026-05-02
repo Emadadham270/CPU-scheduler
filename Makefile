@@ -1,16 +1,16 @@
 CC := gcc
-CFLAGS := -Wall -Wextra -I. -Idata_structures/PCB
+CFLAGS := -Wall -Wextra -I. -Idata_structures/PCB -fcommon
+LDFLAGS := -Wl,--allow-multiple-definition
 OUT_DIR := outFiles
 OBJ_DIR := output
 
 PROCESS_GEN_SRCS := process_generator/process_generator.c process_generator/process_generator_functions.c
 SCHEDULER_SRCS := scheduler/scheduler.c scheduler/scheduler_functions.c data_structures/PCB/Sch_PCB.c
-RR_SCHEDULER_SRCS := rr_scheduler/rr_scheduler.c rr_scheduler/rr_scheduler_functions.c data_structures/PCB/Sch_PCB.c
-PROCESS_SRCS := process/process.c process/process_functions.c
+RR_SCHEDULER_SRCS := rr_scheduler/rr_scheduler.c rr_scheduler/rr_scheduler_functions.c MMU/mmu_functions.c data_structures/PCB/Sch_PCB.c
+PROCESS_SRCS := process/RR_process.c process/process_functions.c
 TEST_GEN_SRCS := test_generator/test_generator.c test_generator/test_generator_functions.c
 PCB_SRCS := data_structures/PCB/Sch_PCB.c
 SUB_SCHED_SRCS := sub-sched/sub_scheduler.c sub-sched/sub_scheduler_functions.c data_structures/PCB/Sch_PCB.c
-MMU_SRCS := MMU/mmu.c MMU/mmu_functions.c data_structures/PCB/Sch_PCB.c
 
 PROCESS_GEN_BIN := $(OUT_DIR)/process_generator.out
 SCHEDULER_BIN := $(OUT_DIR)/scheduler.out
@@ -20,13 +20,12 @@ TEST_GEN_BIN := $(OUT_DIR)/test_generator.out
 CLK_BIN := $(OUT_DIR)/clk.out
 PCB_OBJ := $(OBJ_DIR)/data_structures/PCB/Sch_PCB.o
 SUB_SCHED_BIN := $(OUT_DIR)/sub_scheduler.out
-MMU_BIN := $(OUT_DIR)/mmu.out
 
 .PHONY: all build clean run run-all run-all-auto dirs process_generator scheduler rr_scheduler sub_scheduler process test_generator clk pcb folders
 
 all: build
 
-build: dirs process_generator scheduler rr_scheduler sub_scheduler process test_generator clk mmu
+build: dirs process_generator scheduler rr_scheduler sub_scheduler process test_generator clk
 
 dirs:
 	mkdir -p $(OUT_DIR)
@@ -46,25 +45,25 @@ clk: $(CLK_BIN)
 
 pcb: $(PCB_OBJ)
 
-folders: process_generator scheduler process test_generator mmu
+folders: process_generator scheduler process test_generator
 
 $(PROCESS_GEN_BIN): $(PROCESS_GEN_SRCS) | dirs
-	$(CC) $(CFLAGS) $(PROCESS_GEN_SRCS) -o $@
+	$(CC) $(CFLAGS) $(PROCESS_GEN_SRCS) -o $@ $(LDFLAGS)
 
 $(SCHEDULER_BIN): $(SCHEDULER_SRCS) | dirs
-	$(CC) $(CFLAGS) $(SCHEDULER_SRCS) -o $@ -lm
+	$(CC) $(CFLAGS) $(SCHEDULER_SRCS) -o $@ $(LDFLAGS) -lm
 
 $(RR_SCHEDULER_BIN): $(RR_SCHEDULER_SRCS) | dirs
-	$(CC) $(CFLAGS) $(RR_SCHEDULER_SRCS) -o $@ -lm
+	$(CC) $(CFLAGS) $(RR_SCHEDULER_SRCS) -o $@ $(LDFLAGS) -lm
 
 $(PROCESS_BIN): $(PROCESS_SRCS) | dirs
-	$(CC) $(CFLAGS) $(PROCESS_SRCS) -o $@
+	$(CC) $(CFLAGS) $(PROCESS_SRCS) -o $@ $(LDFLAGS)
 
 $(TEST_GEN_BIN): $(TEST_GEN_SRCS) | dirs
-	$(CC) $(CFLAGS) $(TEST_GEN_SRCS) -o $@
+	$(CC) $(CFLAGS) $(TEST_GEN_SRCS) -o $@ $(LDFLAGS)
 
 $(CLK_BIN): clk.c | dirs
-	$(CC) $(CFLAGS) clk.c -o $@
+	$(CC) $(CFLAGS) clk.c -o $@ $(LDFLAGS)
 
 $(PCB_OBJ): $(PCB_SRCS) | dirs
 	$(CC) $(CFLAGS) -c $(PCB_SRCS) -o $@
@@ -72,12 +71,7 @@ $(PCB_OBJ): $(PCB_SRCS) | dirs
 sub_scheduler: $(SUB_SCHED_BIN)
 
 $(SUB_SCHED_BIN): $(SUB_SCHED_SRCS) | dirs
-	$(CC) $(CFLAGS) $(SUB_SCHED_SRCS) -o $@ -lm
-
-mmu: $(MMU_BIN)
-
-$(MMU_BIN): $(MMU_SRCS) | dirs
-	$(CC) $(CFLAGS) $(MMU_SRCS) -o $@ -lm
+	$(CC) $(CFLAGS) $(SUB_SCHED_SRCS) -o $@ $(LDFLAGS) -lm
 
 clean:
 	rm -f $(OUT_DIR)/*.out
@@ -86,10 +80,10 @@ clean:
 run: process_generator
 	./$(PROCESS_GEN_BIN)
 
-run-all: process_generator scheduler rr_scheduler sub_scheduler process clk mmu
-	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(RR_SCHEDULER_BIN) $(SUB_SCHED_BIN) $(PROCESS_BIN) $(CLK_BIN) $(MMU_BIN)
+run-all: process_generator scheduler rr_scheduler sub_scheduler process clk
+	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(RR_SCHEDULER_BIN) $(SUB_SCHED_BIN) $(PROCESS_BIN) $(CLK_BIN)
 	cd process_generator; ../$(PROCESS_GEN_BIN)
 
-run-all-auto: process_generator scheduler rr_scheduler process clk mmu
-	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(RR_SCHEDULER_BIN) $(PROCESS_BIN) $(CLK_BIN) $(MMU_BIN)
+run-all-auto: process_generator scheduler rr_scheduler process clk
+	chmod +x $(PROCESS_GEN_BIN) $(SCHEDULER_BIN) $(RR_SCHEDULER_BIN) $(PROCESS_BIN) $(CLK_BIN)
 	setsid sh -c 'cd process_generator; printf "3\n3\n3\n" | ../$(PROCESS_GEN_BIN)' || true
