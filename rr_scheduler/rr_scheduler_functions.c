@@ -13,8 +13,8 @@
 #include <stdbool.h>
 #include <errno.h>
 
-void destroyClk(bool terminateAll);
-int getClk(void);
+// void destroyClk(bool terminateAll);
+// int getClk(void);
 
 void down(int sem)
 {
@@ -87,13 +87,9 @@ struct PerfVars initialize_perf()
 
 void initialize_PCB(PCB *pcb)
 {
-
-    int index = check_free_frame();
-    pcb->frame_index = index;
-    dafine_page_table(pcb->id, index);
-
-    int index = check_free_frame();
-    put_page_in_frame(pcb->id, 0, index);
+    fault_handler(pcb->id,64,0);
+    fault_handler(pcb->id,64,1);
+    
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)
@@ -123,12 +119,14 @@ void runProcess(struct PCB *pcb, FILE *log_file)
             char runtime_str[16];
             char shm_str[16];
             char sem_str[16];
+            char id_str[16];
 
             snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
             snprintf(shm_str, sizeof(shm_str), "%d", shmRT_id);
             snprintf(sem_str, sizeof(sem_str), "%d", sem_id);
+            snprintf(id_str, sizeof(id_str), "%d", pcb->id);
             execl("../outFiles/process.out", "process.out", runtime_str, shm_str, sem_str,
-                  (char *)NULL);
+                  id_str, (char *)NULL);
             perror("execl failed");
             _exit(1);
         }
@@ -209,9 +207,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
     }
 }
 
-void initialize_PCB(struct PCB *pcb)
-{
-}
+
 
 void wait_N_secs(int pen, int N)
 {
@@ -309,7 +305,7 @@ void write_perf(struct PerfVars perf, FILE *perf_file)
     fprintf(perf_file, "Std WTA = %.2f\n", std_WTA);
 }
 
-void handleRequests()
+void handleRequests(int *lag)
 {
     request req;
     if(msgrcv(req_msgq, &req,sizeof(request) , 0, 0)==-1)
@@ -320,17 +316,20 @@ void handleRequests()
     else 
     {
         VirtualAddress VA=parse_virtual_address(req.address);
-        if(check(currProcess,VA.page))
+        int result = check(currProcess, VA.page,req.operation);
+        
+        if(result==1)
         {
-            int address=check_page_in_RAM(VA.page);
-            if(address!=-1)
-            {
-                RAM[address].R=1;
-                RAM[address].M=req.address=='w'? 1:RAM[address].M;
-            }else
-            {
-                fault_handler(currProcess->id,VA.page,req.operation);
-            }
+            *lag = 1;
+            
         }
+        else if(result==0) {
+            fault_handler(currProcess->id,VA.page,1);
+        }
+        else {
+            // Handle invalid address
+            return;
+        }
+        
     }
 }

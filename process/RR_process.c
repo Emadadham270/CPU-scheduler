@@ -9,6 +9,7 @@ int sem_id;
 volatile sig_atomic_t prev_clk_tick;
 int running_time = 0;
 int req_index = 0;
+int id = 0;
 int req_msgq;
 
 void on_cont(int signum)
@@ -80,6 +81,13 @@ int main(int argc, char *argv[])
         kill(getppid(), SIGUSR1);
         exit(-1);
     }
+
+     if (!to_int(argv[4], &id))
+    {
+        kill(getppid(), SIGUSR1);
+        exit(-1);
+    }
+
   
     int *shmRT_addr = (int *)shmat(shmRT_id, (void *)0, 0);
     if ((long)shmRT_addr == -1)
@@ -90,7 +98,9 @@ int main(int argc, char *argv[])
 
     //make array of requests [size 100] 
     //fill it from the file requests.txt at the input 
-    FILE *file = fopen("requests.txt", "r");
+    char filename[256];
+    snprintf(filename, sizeof(filename), "requests%d.txt", id);
+    FILE *file = fopen(filename, "r");
     if (file == NULL)
     {
         perror("Error opening file");

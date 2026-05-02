@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
     }
 
     // TODO Initialization
+    
     // 1. Read the input files.
     char fileName[100];
     char path[150];
@@ -72,7 +73,7 @@ int main(int argc, char *argv[])
 
     if (type == 1)
     {
-        printf("Enter the time quantum of RR\n");
+        printf("Enter the time quantum ====of RR\n");
         scanf("%d", &quantum);
         sprintf(qStr, "%d", quantum);
 
