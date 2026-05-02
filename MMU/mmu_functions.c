@@ -84,6 +84,7 @@ short check(PCB *pcb, int vpt_address, char req_type)
 //directly put the page in the frame without checking anything
 void put_page_in_frame(int pid, int page_number, int frame_index)
 {
+    printf("At time %d page %d of pid %d was placed at frame %d\n",getClk(),page_number,pid,frame_index);
     PCB *owner = get_process(pid);
     if (owner == NULL || owner->frame_index < 0)
         return;
@@ -94,6 +95,7 @@ void put_page_in_frame(int pid, int page_number, int frame_index)
     RAM[frame_index].R = 1;
     RAM[frame_index].M = 0;
     RAM[frame_index].vpage = page_number;
+
 
     RAM[owner->frame_index].pte[page_number].valid = 1;
     RAM[owner->frame_index].pte[page_number].R = 1;
@@ -122,6 +124,8 @@ PCB *get_process(int id)
 // define the page table of the process at the given frame index
 void define_page_table(int pid, int frame_index)
 {
+    printf("At time %d page table of %d was placed at frame %d\n",getClk(),pid,frame_index);
+
     PCB *owner = get_process(pid);
 
     RAM[frame_index].occupied = 1;
@@ -151,6 +155,7 @@ void define_page_table(int pid, int frame_index)
 
 void swap(int id, int frameIndex, int page, int type)
 {
+    
     // set the delay
     int block_end_time = getClk();
     if (page < 64)
@@ -165,13 +170,13 @@ void swap(int id, int frameIndex, int page, int type)
         RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].R = 0;
         RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].M = 0;
     }
-
+printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_owner->id,id);
     // check if you load a page table or a normal data
 
     if (type == 0)
     {
         define_page_table(id, frameIndex);
-        fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
+        //fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
         return;
     }
 
@@ -193,7 +198,7 @@ void swap(int id, int frameIndex, int page, int type)
     {
         page -= 64;
     }
-    
+    printf("At time %d page %d of pid %d was placed at frame %d\n",getClk(),page,id,frameIndex);
     RAM[owner->frame_index].pte[page].valid = 1;
     RAM[owner->frame_index].pte[page].frame_address = frameIndex;
     RAM[owner->frame_index].pte[page].R = 1;
@@ -203,6 +208,8 @@ void swap(int id, int frameIndex, int page, int type)
     RAM[frameIndex].M = 0;
     RAM[frameIndex].occupied = 1;
     RAM[frameIndex].vpage = page;
+    if(type!=2)
+        RAM[frameIndex].reserved = 1;
 
     if (type == 1)
     {
@@ -213,11 +220,12 @@ void swap(int id, int frameIndex, int page, int type)
 // handle faults of reserving data page
 void fault_handler(int pid, int page_num, int type, int raw_address)
 {
-    if (type != 2)
-        printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
+    //if (type != 2)
+        //printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
     int cls = 4;
     int victim_index = -1;
     PCB *owner = get_process(pid);
+    printf("At time %d page %d of pid %d want to be placed\n",getClk(),page_num,pid);
 
     if (type == 1 && owner != NULL && page_num < 64)
     {
@@ -231,12 +239,14 @@ void fault_handler(int pid, int page_num, int type, int raw_address)
 
     for (int i = 0; i < MEM_SIZE; i++)
     {
+        //printf("i is %d and memSize is %d\n",i,MEM_SIZE);
         if (!RAM[i].occupied)
         {
             if (type == 0)
                 define_page_table(pid, i);
             else
             {
+                if(type != 2) RAM[i].reserved = 1;
                 put_page_in_frame(pid,page_num,i);
                 if (owner != NULL && page_num < 64)
                     owner->unblock_at = getClk() + page_fault_delay(i);
@@ -252,13 +262,20 @@ void fault_handler(int pid, int page_num, int type, int raw_address)
             }
             return;
         }
-        if (RAM[i].pte) // pte != null ,that means it is a page table
+        //printf("frame %d reserve=%d at tick %d \n",i,RAM[i].reserved,getClk());
+       // printf("\nAt time %d The victim frameIndex is %d \n",getClk(),victim_index);
+
+        if (RAM[i].pte ||RAM[i].reserved) // pte != null ,that means it is a page table
+        {
             continue;
+        }
+
         int curr_cls = 2 * RAM[i].R + RAM[i].M;
         if (curr_cls < cls)
         {
             cls = curr_cls;
             victim_index = i;
+            //printf("\nAt time %d The victim frameIndex is %d \n",getClk(),victim_index);
         }
     }
 
@@ -296,4 +313,10 @@ int validate(PCB *pcb, int address)
     }
 
     return addr / 16 <= pcb->limit ? addr / 16 : -1;
+}
+
+
+void freeReserved(int frameIndex)
+{
+    RAM[frameIndex].reserved=0;
 }

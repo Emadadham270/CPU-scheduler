@@ -115,6 +115,7 @@ typedef struct Frame
   short occupied;
   int data;
   int vpage;
+  short reserved;
 } Frame;
 
 typedef struct request
