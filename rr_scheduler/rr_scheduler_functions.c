@@ -102,7 +102,7 @@ void initialize_PCB(PCB *pcb)
 
 void runProcess(struct PCB *pcb, FILE *log_file)
 {
-    printf("Running process with id %d at time %d\n", pcb->id, getClk());
+    //printf("Running process with id %d at time %d\n", pcb->id, getClk());
     *shmRT_addr = pcb->remaining_time;
     if (pcb->start_time == -1)
     {
@@ -130,7 +130,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
             char shm_str[16];
             char sem_str[16];
             char id_str[16];
-            printf("Child process with id %d started at time %d\n", pcb->id, getClk());
+            //printf("Child process with id %d started at time %d\n", pcb->id, getClk());
 
             snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
             snprintf(shm_str, sizeof(shm_str), "%d", shmRT_id);
@@ -237,7 +237,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
     else if (!isEmpty(readyQueue))
     {
         *currProcess = dequeue(readyQueue);
-        printf("calling run at time %d\n", getClk());
+        //printf("calling run at time %d\n", getClk());
         runProcess(*currProcess, log_file);
         *next_preemtion_time = getClk() + q;
         return;
@@ -348,17 +348,17 @@ void handleRequests(int *lag)
     request req;
     if(msgrcv(req_msgq, &req,sizeof(request)-sizeof(long) , 0, IPC_NOWAIT)==-1)
     {
-        printf("[rr_scheduler::handleRequests] No request received at tick %d\n", getClk());
+        //printf("[rr_scheduler::handleRequests] No request received at tick %d\n", getClk());
         return;
     }
-    printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
+    //printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
     VirtualAddress VA = parse_virtual_address(req.address);
     int result = check(currProcess, VA.page, req.operation);
 
 
     if(result==1)
     {
-        printf("Request is valid and page is in RAM.\n");
+        //printf("Request is valid and page is in RAM.\n");
         *lag = 1;
         context_switch_until = getClk() + 1;
         if (next_preemtion_time != -1)
@@ -366,7 +366,7 @@ void handleRequests(int *lag)
 
     }
     else if(result==0) {
-        printf("Request is valid but page is not in RAM. Handling page fault...\n");
+        //printf("Request is valid but page is not in RAM. Handling page fault...\n");
         currProcess->lState = STOP;
         currProcess->remaining_time = *shmRT_addr;
         log_data(log_file, currProcess);
@@ -408,6 +408,7 @@ void checkBlockEnd()
                     fprintf(memory_log,
                             "At time %d disk address %d for process %d is loaded into memory page %d.\n",
                             getClk(), pcb->base + pcb->pending_page, pcb->id, pcb->pending_frame);
+                    freeReserved(pcb->pending_frame);
                     pcb->pending_page = -1;
                     pcb->pending_frame = -1;
                 }
@@ -483,7 +484,7 @@ void receiveProcesses()
         {
             if (msg.mtype == 1)
             {
-                printf("Received new process with id %d at time %d\n", msg.id, getClk());
+                //printf("Received new process with id %d at time %d\n", msg.id, getClk());
                 struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
                 *pcb = createPCB(msg);
                 // add the logic of the first arriv

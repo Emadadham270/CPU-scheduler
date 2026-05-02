@@ -103,9 +103,9 @@ int main(int argc, char *argv[])
         if (now == last_tick)
             continue; // spin until next tick
 
-        printf("[rr_scheduler] tick=%d last=%d receiving=%d readyEmpty=%d currProcess=%p currPid=%d\n",
-               now, last_tick, receivingProcesses, isEmpty(readyQueue), (void *)currProcess,
-               currProcess ? currProcess->pid : -1);
+        //printf("[rr_scheduler] tick=%d last=%d receiving=%d readyEmpty=%d currProcess=%p currPid=%d\n",
+               //now, last_tick, receivingProcesses, isEmpty(readyQueue), (void *)currProcess,
+               //currProcess ? currProcess->pid : -1);
 
         last_tick = now;
 
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 
             if (currProcess != NULL)
             {
-                printf("[rr_scheduler] granting sem to pid %d at tick %d\n", currProcess->pid, now);
+                //printf("[rr_scheduler] granting sem to pid %d at tick %d\n", currProcess->pid, now);
                 union Semun s;
                 s.val = 0;
                 semctl(sem_id, 0, SETVAL, s);
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
             }
         }
     }
-    printf("[rr_scheduler] exiting main loop: readyEmpty=%d receivingProcesses=%d currProcess=%p\n", isEmpty(readyQueue), receivingProcesses, (void *)currProcess);
+    //printf("[rr_scheduler] exiting main loop: readyEmpty=%d receivingProcesses=%d currProcess=%p\n", isEmpty(readyQueue), receivingProcesses, (void *)currProcess);
     // upon termination release the clock resources.
     msgctl(req_msgq, IPC_RMID, NULL);
     msgctl(msgq_id, IPC_RMID, NULL);
