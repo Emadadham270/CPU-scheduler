@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
         if (remainingtime&&req_index < num_requests && running_time == reqs_arr[req_index].tick)
         {
             //printf("Process %d sending request at time %d: address=%d, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
-
+            reqs_arr[req_index].mtype=id;
             if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(long), 0) == -1)
             {
                 perror("Error in msgsnd");

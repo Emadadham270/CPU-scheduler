@@ -110,8 +110,8 @@ int main(int argc, char *argv[])
         last_tick = now;
 
         // 0. receive requests for the memory
-        handleRequests(&lag);
-
+        if(next_preemtion_time!=-1 && getClk() < next_preemtion_time)
+            handleRequests(&lag);
         // 1. check blocked processes
         checkBlockEnd();
 
@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
                 up(sem_id);
             }
         }
+        
     }
     //printf("[rr_scheduler] exiting main loop: readyEmpty=%d receivingProcesses=%d currProcess=%p\n", isEmpty(readyQueue), receivingProcesses, (void *)currProcess);
     // upon termination release the clock resources.
