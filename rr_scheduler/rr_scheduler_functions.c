@@ -95,8 +95,8 @@ void initialize_PCB(PCB *pcb)
 {
     if (pcb->frame_index == -1)
     {
-        fault_handler(pcb->id, 0, 0, 0);
-        fault_handler(pcb->id, 0, 2, 0);
+        fault_handler(pcb->id, 0, 0, 0,'r');
+        fault_handler(pcb->id, 0, 2, 0,'r');
     }
 }
 
@@ -374,7 +374,7 @@ void handleRequests(int *lag)
         currProcess->state = 'B';
         enqueue(blockQueue,currProcess);
         int id =currProcess->id;
-        fault_handler(id,VA.page,1,req.address);
+        fault_handler(id,VA.page,1,req.address,req.operation);
         if (currProcess->pid > 0)
             kill(currProcess->pid, SIGSTOP);
         context_switch_until = getClk() + 1;
@@ -468,6 +468,7 @@ void handleFinishedProcesses()
             perf.total_runtime += currProcess->runtime;
             perf.finish_time = currProcess->finish_time;
             dequeue_by_id(currentPCBs, currProcess->id);
+            freePageTable(currProcess);
             free(currProcess);
             currProcess = NULL;
             next_preemtion_time = -1;
