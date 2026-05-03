@@ -82,7 +82,7 @@ short check(PCB *pcb, int vpt_address, char req_type)
 
 
 //directly put the page in the frame without checking anything
-void put_page_in_frame(int pid, int page_number, int frame_index)
+void put_page_in_frame(int pid, int page_number, int frame_index,char req_type)
 {
     printf("At time %d page %d of pid %d was placed at frame %d\n",getClk(),page_number,pid,frame_index);
     PCB *owner = get_process(pid);
@@ -93,13 +93,18 @@ void put_page_in_frame(int pid, int page_number, int frame_index)
     RAM[frame_index].process_id = pid;
     RAM[frame_index].pte = NULL;
     RAM[frame_index].R = 1;
-    RAM[frame_index].M = 0;
     RAM[frame_index].vpage = page_number;
-
-
+    if(req_type=='w')
+    {
+        RAM[frame_index].M = 1;
+        RAM[owner->frame_index].pte[page_number].M = 1;
+    }
+    else{
+        RAM[frame_index].M = 0;
+        RAM[owner->frame_index].pte[page_number].M = 0;
+    }
     RAM[owner->frame_index].pte[page_number].valid = 1;
     RAM[owner->frame_index].pte[page_number].R = 1;
-    RAM[owner->frame_index].pte[page_number].M = 0;
     RAM[owner->frame_index].pte[page_number].frame_address = frame_index;
 }
 
@@ -153,12 +158,12 @@ void define_page_table(int pid, int frame_index)
 
 // swap the page in the frame with the new page and update the page table of the owner process
 
-void swap(int id, int frameIndex, int page, int type)
+void swap(int id, int frameIndex, int page, int type,char req_type)
 {
     
     // set the delay
     int block_end_time = getClk();
-    if (page < 64)
+    if (page < 64 && type != 2)
         block_end_time = getClk() + page_fault_delay(frameIndex);
 
     // update last owner page table
@@ -180,7 +185,7 @@ printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_o
         return;
     }
 
-    if (memory_log && RAM[frameIndex].M != 0)
+    if (memory_log && RAM[frameIndex].M != 0 && type != 2)
     {
         fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
     }
@@ -202,10 +207,17 @@ printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_o
     RAM[owner->frame_index].pte[page].valid = 1;
     RAM[owner->frame_index].pte[page].frame_address = frameIndex;
     RAM[owner->frame_index].pte[page].R = 1;
-    RAM[owner->frame_index].pte[page].M = 0;
+    if(req_type=='w')
+    {
+        RAM[owner->frame_index].pte[page].M = 1;
+        RAM[frameIndex].M = 1;
+    }
+    else{
+        RAM[owner->frame_index].pte[page].M = 0;
+        RAM[frameIndex].M = 0;
+    }
     RAM[frameIndex].process_id = id;
     RAM[frameIndex].R = 1;
-    RAM[frameIndex].M = 0;
     RAM[frameIndex].occupied = 1;
     RAM[frameIndex].vpage = page;
     if(type!=2)
@@ -218,7 +230,7 @@ printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_o
     }
 }
 // handle faults of reserving data page
-void fault_handler(int pid, int page_num, int type, int raw_address)
+void fault_handler(int pid, int page_num, int type, int raw_address,char req_type)
 {
     //if (type != 2)
         //printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
@@ -247,9 +259,9 @@ void fault_handler(int pid, int page_num, int type, int raw_address)
             else
             {
                 if(type != 2) RAM[i].reserved = 1;
-                put_page_in_frame(pid,page_num,i);
                 if (owner != NULL && page_num < 64)
                     owner->unblock_at = getClk() + page_fault_delay(i);
+                put_page_in_frame(pid,page_num,i,req_type);
             }
 
             if (type == 1 && memory_log)
@@ -280,7 +292,7 @@ void fault_handler(int pid, int page_num, int type, int raw_address)
     }
 
     if (victim_index != -1)
-        swap(pid,victim_index,page_num,type);
+        swap(pid,victim_index,page_num,type,req_type);
 }
 
 void clear_recent()
@@ -319,4 +331,17 @@ int validate(PCB *pcb, int address)
 void freeReserved(int frameIndex)
 {
     RAM[frameIndex].reserved=0;
+}
+
+
+void freePageTable(PCB *finishedProcess)
+{
+    int frame =finishedProcess->frame_index;
+    RAM[frame].M=0;
+    RAM[frame].occupied=0;
+    RAM[frame].process_id=-1;
+    RAM[frame].pte=NULL;
+    RAM[frame].R=0;
+    RAM[frame].reserved=0;
+    RAM[frame].vpage=-1;
 }

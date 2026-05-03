@@ -1,7 +1,9 @@
 PageFault upon VA 100000 from process 1
 Free Physical page 2 allocated
 PageFault upon VA 10000 from process 2
+Swapping out page 1 to disk
 At time 16 disk address 2 for process 1 is loaded into memory page 2.
-At time 20 disk address 21 for process 2 is loaded into memory page 1.
+At time 30 disk address 21 for process 2 is loaded into memory page 1.
 PageFault upon VA 100000 from process 2
-At time 31 disk address 22 for process 2 is loaded into memory page 1.
+Free Physical page 0 allocated
+At time 41 disk address 22 for process 2 is loaded into memory page 0.
