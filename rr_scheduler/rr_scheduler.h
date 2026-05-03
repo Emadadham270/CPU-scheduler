@@ -27,6 +27,7 @@ extern int shmRT_id;
 extern int context_switch_until;
 extern perfVars perf;
 extern FILE *log_file, *perf_file;
+extern int lag;
 
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();

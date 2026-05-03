@@ -151,6 +151,7 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         pcb->lState = RESUME;
         log_data(log_file, pcb);
         kill(pcb->pid, SIGCONT);
+        handleRequests(&lag);
     }
     pcb->state = 'R';
 }
@@ -202,7 +203,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             *next_preemtion_time = getClk() + q;
             return;
         }
-
+        
         /* Check if the quantum has expired */
         if ((isEmpty(readyQueue) || readyQueue->front->pcb->arrival == getClk()) && getClk() >= *next_preemtion_time)
         {
@@ -233,6 +234,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             runProcess(*currProcess, log_file);
             return;
         }
+        
     }
     else if (!isEmpty(readyQueue))
     {
@@ -346,7 +348,7 @@ void handleRequests(int *lag)
         return;
 
     request req;
-    if(msgrcv(req_msgq, &req,sizeof(request)-sizeof(long) , 0, IPC_NOWAIT)==-1)
+    if(msgrcv(req_msgq, &req,sizeof(request)-sizeof(long) , currProcess->id, IPC_NOWAIT)==-1)
     {
         //printf("[rr_scheduler::handleRequests] No request received at tick %d\n", getClk());
         return;
