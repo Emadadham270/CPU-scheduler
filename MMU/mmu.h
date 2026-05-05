@@ -6,7 +6,7 @@
 #include "../data_structures/PCB/Sch_PCB.h"
 #include <stdio.h>
 
-#define MEM_SIZE 4
+#define MEM_SIZE 32
 #define PAGE_TABLE_SIZE 64
 
 extern Frame RAM[MEM_SIZE];
@@ -19,9 +19,10 @@ short check(PCB *pcb, int vpt_address, char req_type);
 void define_page_table(int pid, int frame_index);
 int check_free_frame();
 void put_page_in_frame(int pid, int page_number, int frame_index,char req_type);
-void fault_handler(int pid, int page_num, int type, int raw_address,char req_type);
+void fault_handler(int pid, int page_num, int type, char * raw_address,char req_type);
 void swap(int id, int frameIndex, int page, int type,char req_type);
 VirtualAddress parse_virtual_address(int address);
+VirtualAddress parse_hexa_address(const char *address);
 short check_page_in_RAM(int vpt_address);
 PCB *get_process(int id);
 void freeReserved(int frameIndex);

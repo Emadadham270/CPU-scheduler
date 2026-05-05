@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        sscanf(line, "%d %d %c", &reqs_arr[i].tick, &reqs_arr[i].address, &reqs_arr[i].operation);
+        sscanf(line, "%d %s %c", &reqs_arr[i].tick, reqs_arr[i].address, &reqs_arr[i].operation);
         reqs_arr[i].mtype = 1;
         i++;
         // reqs_arr[i].address = (int)strtol(binary_str, NULL, 2);

@@ -80,6 +80,29 @@ short check(PCB *pcb, int vpt_address, char req_type)
     }
 }
 
+VirtualAddress parse_hexa_address(const char *address)
+{
+    VirtualAddress va;
+    va.page = 0;
+    va.offset = 0;
+
+    if (address == NULL || address[0] == '\0')
+        return va;
+
+    // Parse hex string (handles "0x..." or "0X..." format)
+    unsigned int addr = 0;
+    if (address[0] == '0' && (address[1] == 'x' || address[1] == 'X'))
+        addr = (unsigned int)strtoul(address, NULL, 16);
+    else
+        addr = (unsigned int)strtoul(address, NULL, 10);
+
+    // Split into page and offset
+    va.page   = addr >> 4;    // upper bits
+    va.offset = addr & 0xF;   // lower 4 bits
+
+    return va;
+}
+
 
 //directly put the page in the frame without checking anything
 void put_page_in_frame(int pid, int page_number, int frame_index,char req_type)
@@ -237,7 +260,7 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
     }
 }
 // handle faults of reserving data page
-void fault_handler(int pid, int page_num, int type, int raw_address,char req_type)
+void fault_handler(int pid, int page_num, int type, char * raw_address,char req_type)
 {
     //printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
     int cls = 4;
@@ -253,7 +276,7 @@ void fault_handler(int pid, int page_num, int type, int raw_address,char req_typ
         owner->pending_frame = -1;
     }
     if (type == 1 && memory_log)
-        fprintf(memory_log, "PageFault upon VA %d from process %d\n", raw_address, pid);
+        fprintf(memory_log, "PageFault upon VA %s from process %d\n", raw_address, pid);
 
     for (int i = 0; i < MEM_SIZE; i++)
     {

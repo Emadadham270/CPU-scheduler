@@ -4,20 +4,20 @@ At	time	4	process	1	stopped	arr	1	total	20	remain	18	wait	0
 At	time	5	process	2	started	arr	2	total	20	remain	20	wait	3
 At	time	15	process	2	stopped	arr	2	total	20	remain	11	wait	3
 At	time	16	process	1	resumed	arr	1	total	20	remain	18	wait	12
-At	time	19	process	1	stopped	arr	1	total	20	remain	15	wait	12
+At	time	19	process	1	stopped	arr	1	total	20	remain	14	wait	12
 At	time	20	process	2	resumed	arr	2	total	20	remain	11	wait	8
 At	time	23	process	2	stopped	arr	2	total	20	remain	8	wait	8
-At	time	24	process	1	resumed	arr	1	total	20	remain	15	wait	17
-At	time	27	process	1	stopped	arr	1	total	20	remain	12	wait	17
+At	time	24	process	1	resumed	arr	1	total	20	remain	14	wait	17
+At	time	27	process	1	stopped	arr	1	total	20	remain	11	wait	17
 At	time	28	process	2	resumed	arr	2	total	20	remain	8	wait	13
 At	time	31	process	2	stopped	arr	2	total	20	remain	5	wait	13
-At	time	32	process	1	resumed	arr	1	total	20	remain	12	wait	22
-At	time	35	process	1	stopped	arr	1	total	20	remain	9	wait	22
+At	time	32	process	1	resumed	arr	1	total	20	remain	11	wait	22
+At	time	35	process	1	stopped	arr	1	total	20	remain	7	wait	22
 At	time	36	process	2	resumed	arr	2	total	20	remain	5	wait	18
-At	time	39	process	2	stopped	arr	2	total	20	remain	2	wait	18
-At	time	40	process	1	resumed	arr	1	total	20	remain	9	wait	27
-At	time	43	process	1	stopped	arr	1	total	20	remain	6	wait	27
-At	time	44	process	2	resumed	arr	2	total	20	remain	2	wait	23
-At	time	46	process	2	finished	arr	2	total	20	remain	0	wait	23	TA	44	WTA	2.20
-At	time	47	process	1	resumed	arr	1	total	20	remain	6	wait	31
-At	time	53	process	1	finished	arr	1	total	20	remain	0	wait	31	TA	52	WTA	2.60
+At	time	39	process	2	stopped	arr	2	total	20	remain	1	wait	18
+At	time	40	process	1	resumed	arr	1	total	20	remain	7	wait	27
+At	time	43	process	1	stopped	arr	1	total	20	remain	4	wait	27
+At	time	44	process	2	resumed	arr	2	total	20	remain	1	wait	23
+At	time	45	process	2	finished	arr	2	total	20	remain	0	wait	23	TA	43	WTA	2.15
+At	time	46	process	1	resumed	arr	1	total	20	remain	4	wait	30
+At	time	50	process	1	finished	arr	1	total	20	remain	0	wait	30	TA	49	WTA	2.45

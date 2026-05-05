@@ -354,7 +354,7 @@ void handleRequests(int *lag)
         return;
     }
     //printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
-    VirtualAddress VA = parse_virtual_address(req.address);
+    VirtualAddress VA = parse_hexa_address(req.address);
     int result = check(currProcess, VA.page, req.operation);
 
 
