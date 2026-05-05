@@ -122,7 +122,7 @@ typedef struct request
 {
   long mtype; // This is used for message queue, should be set to 1 for requests
   int tick;
-  int address;
+  char address[10];
   char operation; // 'R' for read, 'W' for write
 } request;
 
