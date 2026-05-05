@@ -187,7 +187,7 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
         return;
     }
 
-    if (memory_log && RAM[frameIndex].M != 0 && type != 2)
+    if (memory_log && RAM[frameIndex].M != 0)
     {
         fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
     }
@@ -196,6 +196,11 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
     if (owner == NULL)
         return;
 
+    if (type == 2 && owner!=NULL)
+    {
+        fprintf(memory_log,"At time %d disk address %d for process %d is loaded into memory page %d.\n",
+                getClk(), owner->base + page, owner->id, frameIndex);
+    }
     if (type == 1 && page < 64)
     {
         owner->state = 'B';
