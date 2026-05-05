@@ -1,4 +1,2 @@
 #time addressInBinary r/w
-1    0     w
-2    10000   w
-3    100000  w
+2    0   r
