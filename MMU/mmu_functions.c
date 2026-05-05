@@ -84,6 +84,7 @@ short check(PCB *pcb, int vpt_address, char req_type)
 //directly put the page in the frame without checking anything
 void put_page_in_frame(int pid, int page_number, int frame_index,char req_type)
 {
+    fprintf(memory_log, "Free Physical page %d allocated\n", frame_index);
     printf("At time %d page %d of pid %d was placed at frame %d\n",getClk(),page_number,pid,frame_index);
     PCB *owner = get_process(pid);
     if (owner == NULL || owner->frame_index < 0)
@@ -129,6 +130,7 @@ PCB *get_process(int id)
 // define the page table of the process at the given frame index
 void define_page_table(int pid, int frame_index)
 {
+    fprintf(memory_log, "Free Physical page %d allocated\n", frame_index);
     printf("At time %d page table of %d was placed at frame %d\n",getClk(),pid,frame_index);
 
     PCB *owner = get_process(pid);
@@ -175,7 +177,7 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
         RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].R = 0;
         RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].M = 0;
     }
-printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_owner->id,id);
+    printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_owner->id,id);
     // check if you load a page table or a normal data
 
     if (type == 0)
@@ -232,8 +234,7 @@ printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_o
 // handle faults of reserving data page
 void fault_handler(int pid, int page_num, int type, int raw_address,char req_type)
 {
-    //if (type != 2)
-        //printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
+    //printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
     int cls = 4;
     int victim_index = -1;
     PCB *owner = get_process(pid);
@@ -264,13 +265,19 @@ void fault_handler(int pid, int page_num, int type, int raw_address,char req_typ
                 put_page_in_frame(pid,page_num,i,req_type);
             }
 
-            if (type == 1 && memory_log)
-                fprintf(memory_log, "Free Physical page %d allocated\n", i);
+          //  if (type == 1 && memory_log)
+               // fprintf(memory_log, "Free Physical page %d allocated\n", i);
 
             if (type == 1 && owner != NULL)
             {
                 owner->pending_page = page_num;
                 owner->pending_frame = i;
+            }
+
+            if (type == 2 && owner!=NULL)
+            {
+                fprintf(memory_log,"At time %d disk address %d for process %d is loaded into memory page %d.\n",
+                        getClk(), owner->base + page_num, owner->id, i);
             }
             return;
         }

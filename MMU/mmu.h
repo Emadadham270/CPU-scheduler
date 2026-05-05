@@ -6,7 +6,7 @@
 #include "../data_structures/PCB/Sch_PCB.h"
 #include <stdio.h>
 
-#define MEM_SIZE 4
+#define MEM_SIZE 32
 #define PAGE_TABLE_SIZE 64
 
 extern Frame RAM[MEM_SIZE];

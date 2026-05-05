@@ -407,8 +407,7 @@ void checkBlockEnd()
             {
                 if (pcb->pending_page != -1 && pcb->pending_frame != -1 && memory_log != NULL)
                 {
-                    fprintf(memory_log,
-                            "At time %d disk address %d for process %d is loaded into memory page %d.\n",
+                    fprintf(memory_log,"At time %d disk address %d for process %d is loaded into memory page %d.\n",
                             getClk(), pcb->base + pcb->pending_page, pcb->id, pcb->pending_frame);
                     freeReserved(pcb->pending_frame);
                     pcb->pending_page = -1;
