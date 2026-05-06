@@ -7,7 +7,7 @@ int receivingProcesses = 1;
 Queue *readyQueue;
 Queue *currentPCBs;
 Queue *blockQueue;
-
+reqQueue *requests;
 struct PCB *currProcess = NULL;
 int quantum;
 int k = 0;
@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
     readyQueue = createQueue();
     currentPCBs = createQueue();
     blockQueue = createQueue();
+    requests= createReqQueue();
     char *e;
     quantum = strtol(argv[1], &e, 10);
     char *e2;
@@ -112,6 +113,8 @@ int main(int argc, char *argv[])
         // 0. receive requests for the memory
         if(next_preemtion_time!=-1 && getClk() < next_preemtion_time)
             handleRequests(&lag);
+        else
+            checkReqs();
         // 1. check blocked processes
         checkBlockEnd();
 
@@ -125,9 +128,10 @@ int main(int argc, char *argv[])
                 receiveProcesses();
             
             // 4. Run scheduling algorithm (preempt → re-enqueue → dispatch)
-            if (lag)
-                lag = 0;
-            else if (now > 0)
+            // if (lag)
+            //     lag = 0;
+            // else 
+            if (now > 0)
                 RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
             // Check if we should clear R bits every k quantums
             if (k > 0 && quantums_passed > 0 && quantums_passed % k == 0)

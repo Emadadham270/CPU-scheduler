@@ -347,50 +347,67 @@ void handleRequests(int *lag)
     if (currProcess == NULL)
         return;
 
-    request req;
-    if(msgrcv(req_msgq, &req,sizeof(request)-sizeof(long) , currProcess->id, IPC_NOWAIT)==-1)
-    {
-        //printf("[rr_scheduler::handleRequests] No request received at tick %d\n", getClk());
-        return;
-    }
-    //printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
-    VirtualAddress VA = parse_hexa_address(req.address);
-    int result = check(currProcess, VA.page, req.operation);
-
-
-    if(result==1)
-    {
-        //printf("Request is valid and page is in RAM.\n");
-        *lag = 1;
-        context_switch_until = getClk() + 1;
-        if (next_preemtion_time != -1)
-            next_preemtion_time++;
-
-    }
-    else if(result==0) {
-        //printf("Request is valid but page is not in RAM. Handling page fault...\n");
-        currProcess->lState = STOP;
-        currProcess->remaining_time = *shmRT_addr;
-        log_data(log_file, currProcess);
-        currProcess->last_stopped = getClk();
-        currProcess->state = 'B';
-        enqueue(blockQueue,currProcess);
-        int id =currProcess->id;
-        fault_handler(id,VA.page,1,req.address,req.operation);
-        if (currProcess->pid > 0)
-            kill(currProcess->pid, SIGSTOP);
-        context_switch_until = getClk() + 1;
-        currProcess = NULL;
-        next_preemtion_time = -1;
-    }
-    else {
-        // Handle invalid address
-        return;
-    }
-
+    request * req=(request *)malloc(sizeof(request));
     
+            if(msgrcv(req_msgq, req,sizeof(request)-sizeof(long) , currProcess->id, IPC_NOWAIT)==-1)
+            {
+                //printf("[rr_scheduler::handleRequests] No request received at tick %d\n", getClk());
+                //return;
+                req=NULL;
+            }
+    
+    if(req)
+    {req->tick=getClk();
+    enqueueReq(requests,req);}
+    //printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
+    checkReqs();
 }
 
+
+void checkReqs()
+{
+    if(!isEmptyReq(requests)){
+        VirtualAddress VA = parse_hexa_address(peekReq(requests)->address);
+        int result = check(currProcess, VA.page, peekReq(requests)->operation);
+        printf("page %d of process %d tick %d \n",VA.page,currProcess->id,peekReq(requests)->tick);
+        if((peekReq(requests)->tick+1)<=getClk())
+        {
+
+            request *currReq= dequeueReq(requests);
+            //printf("processing page %d of process %d at time %d and result is %d \n",VA.page,currProcess->id,getClk(),result);
+
+            if(result==1)
+            {
+                //printf("Request is valid and page is in RAM.\n");
+                // *lag = 1;
+                // context_switch_until = getClk() + 1;
+                // if (next_preemtion_time != -1)
+                //     next_preemtion_time++;
+
+            }
+            else if(result==0) {
+                //printf("Request is valid but page is not in RAM. Handling page fault...\n");
+                currProcess->lState = STOP;
+                currProcess->remaining_time = *shmRT_addr;
+                log_data(log_file, currProcess);
+                currProcess->last_stopped = getClk();
+                currProcess->state = 'B';
+                enqueue(blockQueue,currProcess);
+                int id =currProcess->id;
+                fault_handler(id,VA.page,1,currReq->address,currReq->operation);
+                if (currProcess->pid > 0)
+                    kill(currProcess->pid, SIGSTOP);
+                context_switch_until = getClk() + 1;
+                currProcess = NULL;
+                next_preemtion_time = -1;
+            }
+            else {
+                // Handle invalid address
+                return;
+            }
+        }
+    }
+}
 
 void checkBlockEnd()
 {

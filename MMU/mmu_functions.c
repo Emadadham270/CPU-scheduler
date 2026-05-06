@@ -59,7 +59,6 @@ short check(PCB *pcb, int vpt_address, char req_type)
 {
     int pt_address = pcb->frame_index;
     PTE *PT = RAM[pt_address].pte;
-
     if (vpt_address > pcb->limit)
         return -1; // Invalid
 
@@ -210,7 +209,7 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
         return;
     }
 
-    if (memory_log && RAM[frameIndex].M != 0)
+    if (memory_log && RAM[frameIndex].M != 0 && type!=2)
     {
         fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
     }
