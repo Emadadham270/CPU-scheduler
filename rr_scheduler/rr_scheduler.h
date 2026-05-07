@@ -30,6 +30,7 @@ extern int context_switch_until;
 extern perfVars perf;
 extern FILE *log_file, *perf_file;
 extern int lag;
+extern int last_received_sync;
 
 
 struct PCB createPCB(processData p);

@@ -162,13 +162,13 @@ void define_page_table(int pid, int frame_index)
     RAM[frame_index].R = 1;
     RAM[frame_index].M = 0;
     RAM[frame_index].vpage = -1;
-    RAM[frame_index].pte = (PTE *)malloc(sizeof(PTE) * PAGE_TABLE_SIZE);
+    RAM[frame_index].pte = (PTE *)malloc(sizeof(PTE) * owner->limit);
     if (RAM[frame_index].pte == NULL)
     {
         perror("malloc failed");
         exit(1);
     }
-    for (int i = 0; i < PAGE_TABLE_SIZE; i++)
+    for (int i = 0; i < owner->limit; i++)
     {
         RAM[frame_index].pte[i].valid = 0;
         RAM[frame_index].pte[i].R = 0;
@@ -331,6 +331,8 @@ void fault_handler(int pid, int page_num, int type, char * raw_address,char req_
 
 void clear_recent()
 {
+    printf("[ clear_recent ] Clearing R bits at time %d\n", getClk());
+
     for (int i = 0; i < MEM_SIZE; i++)
     {
         if (RAM[i].occupied)
@@ -338,8 +340,10 @@ void clear_recent()
             RAM[i].R = 0;
             if (RAM[i].pte) // if it's a page table, clear the R bits of its entries as well
             {
-                for (int j = 0; j < PAGE_TABLE_SIZE; j++)
+                PCB *owner = get_process(RAM[i].process_id);
+                for (int j = 0; j < owner->limit; j++)
                 {
+                    
                     RAM[i].pte[j].R = 0;
                 }
             }
@@ -367,15 +371,45 @@ void freeReserved(int frameIndex)
     RAM[frameIndex].reserved=0;
 }
 
-
 void freePageTable(PCB *finishedProcess)
 {
-    int frame =finishedProcess->frame_index;
-    RAM[frame].M=0;
-    RAM[frame].occupied=0;
-    RAM[frame].process_id=-1;
-    RAM[frame].pte=NULL;
-    RAM[frame].R=0;
-    RAM[frame].reserved=0;
-    RAM[frame].vpage=-1;
+    int frame = finishedProcess->frame_index;
+    RAM[frame].M          = 0;
+    RAM[frame].occupied   = 0;
+    RAM[frame].process_id = -1;
+    RAM[frame].pte        = NULL;
+    RAM[frame].R          = 0;
+    RAM[frame].reserved   = 0;
+    RAM[frame].vpage      = -1;
+
+    for (int i = 0; i < 32; i++)
+    {
+        if (RAM[i].process_id == finishedProcess->id && RAM[i].reserved == 0)
+        {
+            RAM[i].M          = 0;
+            RAM[i].occupied   = 0;
+            RAM[i].process_id = -1;
+            RAM[i].pte        = NULL;
+            RAM[i].R          = 0;
+            RAM[i].vpage      = -1;
+        }
+    }
+    
+}
+
+void printAllFrames()
+{
+    printf("Current RAM state at time %d:\n", getClk());
+    for (int i = 0; i < MEM_SIZE; i++)
+    {
+        if (RAM[i].occupied)
+        {
+            printf("Frame %d: PID=%d, R=%d, M=%d, Reserved=%d, VPage=%d\n",
+                   i, RAM[i].process_id, RAM[i].R, RAM[i].M, RAM[i].reserved, RAM[i].vpage);
+        }
+        else
+        {
+            printf("Frame %d: Free\n", i);
+        }
+    }
 }

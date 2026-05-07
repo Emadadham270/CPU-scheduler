@@ -1,2 +1,2 @@
 #time address r/w
-0    0x10     w
+0    0x00   w

@@ -17,6 +17,7 @@ int next_preemtion_time = -1;
 int *shmRT_addr;
 int shmRT_id;
 int context_switch_until = -1;
+int last_print = -1;
 perfVars perf;
 FILE *log_file, *perf_file;
 
@@ -26,6 +27,7 @@ void onProcessFinished(int signum)
     processFinishedSignal = 1;
 }
 int lag = 0;
+int last_received_sync = -1;
 int main(int argc, char *argv[])
 {
     (void)argc;
@@ -118,7 +120,14 @@ int main(int argc, char *argv[])
             handleRequests(&lag);
         }
         else
+        {
+            // Drain the current process's message queue one final time before the
+            // quantum boundary check.  The process may have sent a request during
+            // its quantum AFTER the mid-quantum handleRequests call returned, so
+            // we must pull it into the internal requests queue here before checkReqs.
+            handleRequests(&lag);
             checkReqs();
+        }
         // 1. check blocked processes
         checkBlockEnd();
 
@@ -128,7 +137,11 @@ int main(int argc, char *argv[])
         {
             context_switch_until = -1;
             // 3. Receive new arrivals synchronously with process_generator
-            if (receivingProcesses)
+            // 3. Receive new arrivals synchronously with process_generator.
+            // Only call when now strictly exceeds the last sync tick we already
+            // received — avoids the double-call that consumed tick 1 at tick 0
+            // and forced dispatch to tick 2.
+            if (receivingProcesses && now > last_received_sync)
                 receiveProcesses();
             
             // 4. Run scheduling algorithm (preempt → re-enqueue → dispatch)
@@ -138,8 +151,14 @@ int main(int argc, char *argv[])
             if (now > 0)
                 RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
             // Check if we should clear R bits every k quantums
-            if (k > 0 && quantums_passed > 0 && quantums_passed % k == 0)
+            if (k > 0 && quantums_passed > 0 && quantums_passed % k == 0&& quantums_passed > last_print){
                 clear_recent();
+                last_print = quantums_passed;
+                printf("[rr_scheduler] cleared R bits at tick %d after %d quantums\n", now, quantums_passed);
+                printAllFrames();
+
+            }
+                
 
             if (currProcess != NULL)
             {

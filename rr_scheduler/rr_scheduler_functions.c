@@ -198,16 +198,22 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
     if (*currProcess != NULL)
     {
         /* Set up the preemption deadline when a process first starts its slice */
-        if (*next_preemtion_time == -1)
-        {
-            *next_preemtion_time = getClk() + q;
-            return;
-        }
+        // if (*next_preemtion_time == -1)
+        // {
+        //     *next_preemtion_time = getClk() + q;
+        //     // quantums_passed++; // Increment quantum counter when a quantum expires
+        //     printf("[rr_scheduler] num of quantums passed for process %d: at time %d ========= first\n",  quantums_passed, getClk());
+
+        //     return;
+        // }
         
         /* Check if the quantum has expired */
         if ((isEmpty(readyQueue) || readyQueue->front->pcb->arrival == getClk()) && getClk() >= *next_preemtion_time)
         {
             *next_preemtion_time = getClk() + q;
+            quantums_passed++; // Increment quantum counter when a quantum expires
+            printf("fisrt [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
+
             return;
         }
 
@@ -224,8 +230,10 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             (*currProcess)->remaining_time = *shmRT_addr;
             (*currProcess)->state = 'W';
 
-            enqueue(readyQueue, (*currProcess));
             quantums_passed++; // Increment quantum counter when a quantum expires
+            printf("second [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
+            enqueue(readyQueue, (*currProcess));
+            
             wait_N_secs(1, 1);
             *next_preemtion_time = getClk() + q;
 
@@ -242,6 +250,8 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
         //printf("calling run at time %d\n", getClk());
         runProcess(*currProcess, log_file);
         *next_preemtion_time = getClk() + q;
+        // quantums_passed++; // Increment quantum counter when a quantum expires
+        // printf(" third [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
         return;
     }
 }
@@ -383,7 +393,7 @@ void checkReqs()
         VirtualAddress VA = parse_hexa_address(pendingReq->address);
         int result = check(requestOwner, VA.page, pendingReq->operation);
         printf("page %d of process %d tick %d \n",VA.page,requestOwner->id,pendingReq->tick);
-        if(pendingReq->tick+1 <= getClk())//
+        if(pendingReq->tick <= getClk())//
         {
 
             request *currReq= dequeueReq(requests);
@@ -403,6 +413,8 @@ void checkReqs()
                 if (requestOwner == currProcess)
                 {
                     currProcess->lState = STOP;
+                    quantums_passed++; 
+                    printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
                     currProcess->remaining_time = *shmRT_addr;
                     log_data(log_file, currProcess);
                     currProcess->last_stopped = getClk();
@@ -450,7 +462,7 @@ void checkBlockEnd()
     {
         PCBNode *next = node->next;
         // to think about : should it un block at getClk() or  getClk()+1 ?
-        if(node->pcb->unblock_at==getClk())
+        if(node->pcb->unblock_at<=getClk())
         {
             PCB *pcb = dequeue_by_id(blockQueue,node->pcb->id);
             if (pcb != NULL)
@@ -497,6 +509,8 @@ void handleFinishedProcesses()
             currProcess->remaining_time = 0;
             currProcess->state = 'F';
             context_switch_until = currProcess->finish_time + 1;
+            quantums_passed++;
+            printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
 
             currProcess->remaining_time = *shmRT_addr;
             // log data to scheduler.log
@@ -539,7 +553,6 @@ void receiveProcesses()
                 //printf("Received new process with id %d at time %d\n", msg.id, getClk());
                 struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
                 *pcb = createPCB(msg);
-                // add the logic of the first arriv
                 pcb->frame_index = -1;
                 if (perf.first_arrival == -1)
                     perf.first_arrival = pcb->arrival;
@@ -550,6 +563,9 @@ void receiveProcesses()
             {
                 if (msg.arrival >= now)
                 {
+                    // Record the tick covered by this sync so the main loop
+                    // won't call us again until the clock advances past it.
+                    last_received_sync = msg.arrival;
                     break;
                 }
             }
