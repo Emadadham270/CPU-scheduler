@@ -104,15 +104,19 @@ int main(int argc, char *argv[])
         if (now == last_tick)
             continue; // spin until next tick
 
-        //printf("[rr_scheduler] tick=%d last=%d receiving=%d readyEmpty=%d currProcess=%p currPid=%d\n",
-               //now, last_tick, receivingProcesses, isEmpty(readyQueue), (void *)currProcess,
-               //currProcess ? currProcess->pid : -1);
+        // printf("[rr_scheduler] tick=%d last=%d receiving=%d readyEmpty=%d currProcess=%p currPid=%d\n",
+        //        now, last_tick, receivingProcesses, isEmpty(readyQueue), (void *)currProcess,
+        //        currProcess ? currProcess->pid : -1);
 
         last_tick = now;
 
         // 0. receive requests for the memory
-        if(next_preemtion_time!=-1 && getClk() < next_preemtion_time)
+        printf("[rr_scheduler] next_preemption_time %d curr_tick %d: checking requests\n", next_preemtion_time, now);
+        if(next_preemtion_time!=-1 && now <= next_preemtion_time)
+        {
+            printf("[rr_scheduler] handling requests during quantum for process %d at tick %d\n", currProcess->id, now);
             handleRequests(&lag);
+        }
         else
             checkReqs();
         // 1. check blocked processes
