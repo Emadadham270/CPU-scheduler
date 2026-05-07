@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #define MEM_SIZE 32
-#define PAGE_TABLE_SIZE 64
+
 
 extern Frame RAM[MEM_SIZE];
 extern FILE *memory_log;
@@ -27,4 +27,5 @@ short check_page_in_RAM(int vpt_address);
 PCB *get_process(int id);
 void freeReserved(int frameIndex);
 void freePageTable(PCB *finishedProcess);
+void printAllFrames();
 #endif

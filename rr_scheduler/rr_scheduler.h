@@ -4,6 +4,8 @@
 #include <sys/types.h>
 #include "../data structs/structs.h"
 #include "../data_structures/PCB/Sch_PCB.h"
+#include "../data_structures/REQ/requests.h"
+
 #include "../headers.h"
 #include "../MMU/mmu.h"
 #include <stdio.h>
@@ -15,7 +17,7 @@ extern int receivingProcesses;
 extern Queue *readyQueue;
 extern Queue *currentPCBs;
 extern Queue *blockQueue;
-
+extern reqQueue *requests;
 extern struct PCB *currProcess;
 extern int quantum;
 extern int k;
@@ -28,6 +30,8 @@ extern int context_switch_until;
 extern perfVars perf;
 extern FILE *log_file, *perf_file;
 extern int lag;
+extern int last_received_sync;
+
 
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
@@ -47,4 +51,6 @@ void checkBlockEnd();
 void initialize_PCB(PCB *pcb);
 void handleFinishedProcesses();
 void receiveProcesses();
+void checkReqs();
+
 #endif // RR_SCHEDULER_H

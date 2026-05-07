@@ -77,6 +77,30 @@ typedef struct PCBQueue
   int size;
 } PCBQueue;
 
+
+typedef struct request
+{
+  long mtype; // This is used for message queue, should be set to 1 for requests
+  int tick;
+  char address[10];
+  char operation; // 'R' for read, 'W' for write
+} request;
+
+typedef struct reqNode
+{
+  request *req;
+  struct reqNode *next;
+} reqNode;
+
+typedef struct reqQueue
+{
+  reqNode *front;
+  reqNode *rear;
+  int size;
+} reqQueue;
+
+
+
 typedef struct PGNode
 {
   processData data;
@@ -118,13 +142,6 @@ typedef struct Frame
   short reserved;
 } Frame;
 
-typedef struct request
-{
-  long mtype; // This is used for message queue, should be set to 1 for requests
-  int tick;
-  char address[10];
-  char operation; // 'R' for read, 'W' for write
-} request;
 
 typedef struct VirtualAddress
 {

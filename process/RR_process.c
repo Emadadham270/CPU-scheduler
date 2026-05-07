@@ -98,12 +98,17 @@ int main(int argc, char *argv[])
     // make array of requests [size 100]
     // fill it from the file requests.txt at the input
     char filename[256];
-    snprintf(filename, sizeof(filename), "../input/requests%d.txt", id);
+    snprintf(filename, sizeof(filename), "../input/requests_%d.txt", id);
     FILE *file = fopen(filename, "r");
     if (file == NULL)
     {
-        perror("Error opening file");
-        exit(-1);
+        snprintf(filename, sizeof(filename), "../input/requests/requests_%d.txt", id);
+        file = fopen(filename, "r");
+        if (file == NULL)
+        {
+            perror("Error opening file");
+            exit(-1);
+        }
     }
     request reqs_arr[100];
     int i = 0;
@@ -121,7 +126,11 @@ int main(int argc, char *argv[])
             break;
         }
 
-        sscanf(line, "%d %s %c", &reqs_arr[i].tick, reqs_arr[i].address, &reqs_arr[i].operation);
+        if (sscanf(line, "%d %s %c", &reqs_arr[i].tick, reqs_arr[i].address, &reqs_arr[i].operation) != 3)
+        {
+            fprintf(stderr, "Malformed request line in %s, skipping: %s", filename, line);
+            continue;
+        }
         reqs_arr[i].mtype = 1;
         i++;
         // reqs_arr[i].address = (int)strtol(binary_str, NULL, 2);
@@ -142,14 +151,19 @@ int main(int argc, char *argv[])
     {
 
         down(sem_id);
-        //printf("Process %d at time %d: remaining time = %d\n", id, getClk(), remainingtime);
-        remainingtime--;
-        *shmRT_addr = remainingtime;
-        running_time++;
-        if (remainingtime&&req_index < num_requests && running_time == reqs_arr[req_index].tick)
+        // printf("Process %d at time %d: remaining time = %d\n", id, getClk(), remainingtime);
+        printf("[process %d] remaining time = %d, req_index = %d, num_requests = %d, running_time = %d", id, remainingtime, req_index, num_requests, running_time);
+
+        if(req_index < num_requests)
         {
-            //printf("Process %d sending request at time %d: address=%d, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
-            reqs_arr[req_index].mtype=id;
+            printf(" Next request tick = %d", reqs_arr[req_index].tick);
+        }
+        printf("\n");
+
+        if (remainingtime && req_index < num_requests && running_time == reqs_arr[req_index].tick)
+        {
+            printf("[process %d] sending request at time %d: address=%s, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
+            reqs_arr[req_index].mtype = id;
             if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(long), 0) == -1)
             {
                 perror("Error in msgsnd");
@@ -157,6 +171,10 @@ int main(int argc, char *argv[])
 
             req_index++;
         }
+        remainingtime--;
+        *shmRT_addr = remainingtime;
+        
+        running_time++;
     }
 
     destroyClk(false);
