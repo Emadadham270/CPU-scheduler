@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 
         // 0. receive requests for the memory
         printf("[rr_scheduler] next_preemption_time %d curr_tick %d: checking requests\n", next_preemtion_time, now);
-        if(next_preemtion_time!=-1 && now <= next_preemtion_time)
+        if(next_preemtion_time!=-1 && now < next_preemtion_time)
         {
             printf("[rr_scheduler] handling requests during quantum for process %d at tick %d\n", currProcess->id, now);
             handleRequests(&lag);
@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
                 up(sem_id);
             }
         }
+        
         
     }
     //printf("[rr_scheduler] exiting main loop: readyEmpty=%d receivingProcesses=%d currProcess=%p\n", isEmpty(readyQueue), receivingProcesses, (void *)currProcess);

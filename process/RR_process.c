@@ -126,7 +126,11 @@ int main(int argc, char *argv[])
             break;
         }
 
-        sscanf(line, "%d %s %c", &reqs_arr[i].tick, reqs_arr[i].address, &reqs_arr[i].operation);
+        if (sscanf(line, "%d %s %c", &reqs_arr[i].tick, reqs_arr[i].address, &reqs_arr[i].operation) != 3)
+        {
+            fprintf(stderr, "Malformed request line in %s, skipping: %s", filename, line);
+            continue;
+        }
         reqs_arr[i].mtype = 1;
         i++;
         // reqs_arr[i].address = (int)strtol(binary_str, NULL, 2);
@@ -167,9 +171,9 @@ int main(int argc, char *argv[])
 
             req_index++;
         }
-
-        *shmRT_addr = remainingtime;
         remainingtime--;
+        *shmRT_addr = remainingtime;
+        
         running_time++;
     }
 

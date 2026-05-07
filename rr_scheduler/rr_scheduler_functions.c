@@ -344,21 +344,28 @@ void write_perf(struct PerfVars perf, FILE *perf_file)
 
 void handleRequests(int *lag)
 {
+    (void)lag;
     if (currProcess == NULL)
         return;
 
-    request * req=(request *)malloc(sizeof(request));
-    
-            if(msgrcv(req_msgq, req,sizeof(request)-sizeof(long) , currProcess->id, IPC_NOWAIT)==-1)
-            {
-                //printf("[rr_scheduler::handleRequests] No request received at tick %d\n", getClk());
-                //return;
-                req=NULL;
-            }
-    
-    if(req)
-    {req->tick=getClk();
-    enqueueReq(requests,req);}
+    request *req = (request *)malloc(sizeof(request));
+    if (req == NULL)
+    {
+        perror("malloc failed");
+        exit(1);
+    }
+
+    if (msgrcv(req_msgq, req, sizeof(request) - sizeof(long), currProcess->id, IPC_NOWAIT) == -1)
+    {
+        free(req);
+        req = NULL;
+    }
+
+    if (req)
+    {
+        req->tick = getClk();
+        enqueueReq(requests, req);
+    }
     //printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
     checkReqs();
 }
@@ -367,10 +374,16 @@ void handleRequests(int *lag)
 void checkReqs()
 {
     if(!isEmptyReq(requests)){
-        VirtualAddress VA = parse_hexa_address(peekReq(requests)->address);
-        int result = check(currProcess, VA.page, peekReq(requests)->operation);
-        printf("page %d of process %d tick %d \n",VA.page,currProcess->id,peekReq(requests)->tick);
-        if((peekReq(requests)->tick+1)<=getClk())
+        request *pendingReq = peekReq(requests);
+        PCB *requestOwner = get_process((int)pendingReq->mtype);
+
+        if (requestOwner == NULL)
+            return;
+
+        VirtualAddress VA = parse_hexa_address(pendingReq->address);
+        int result = check(requestOwner, VA.page, pendingReq->operation);
+        printf("page %d of process %d tick %d \n",VA.page,requestOwner->id,pendingReq->tick);
+        if(pendingReq->tick+1 <= getClk())//
         {
 
             request *currReq= dequeueReq(requests);
@@ -387,24 +400,44 @@ void checkReqs()
             }
             else if(result==0) {
                 //printf("Request is valid but page is not in RAM. Handling page fault...\n");
-                currProcess->lState = STOP;
-                currProcess->remaining_time = *shmRT_addr;
-                log_data(log_file, currProcess);
-                currProcess->last_stopped = getClk();
-                currProcess->state = 'B';
-                enqueue(blockQueue,currProcess);
-                int id =currProcess->id;
+                if (requestOwner == currProcess)
+                {
+                    currProcess->lState = STOP;
+                    currProcess->remaining_time = *shmRT_addr;
+                    log_data(log_file, currProcess);
+                    currProcess->last_stopped = getClk();
+                    currProcess->state = 'B';
+                    enqueue(blockQueue,currProcess);
+                }
+                else
+                {
+                    PCB *blockedProcess = dequeue_by_id(readyQueue, requestOwner->id);
+                    if (blockedProcess == NULL)
+                    {
+                        free(currReq);
+                        return;
+                    }
+                    blockedProcess->state = 'B';
+                    enqueue(blockQueue, blockedProcess);
+                    requestOwner = blockedProcess;
+                }
+                int id =requestOwner->id;
                 fault_handler(id,VA.page,1,currReq->address,currReq->operation);
-                if (currProcess->pid > 0)
+                if (requestOwner == currProcess && currProcess->pid > 0)
                     kill(currProcess->pid, SIGSTOP);
-                context_switch_until = getClk() + 1;
-                currProcess = NULL;
-                next_preemtion_time = -1;
+                if (requestOwner == currProcess)
+                {
+                    context_switch_until = getClk() + 1;
+                    currProcess = NULL;
+                    next_preemtion_time = -1;
+                }
             }
             else {
                 // Handle invalid address
+                free(currReq);
                 return;
             }
+            free(currReq);
         }
     }
 }
