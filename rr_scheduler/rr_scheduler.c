@@ -113,10 +113,10 @@ int main(int argc, char *argv[])
         last_tick = now;
 
         // 0. receive requests for the memory
-        printf("[rr_scheduler] next_preemption_time %d curr_tick %d: checking requests\n", next_preemtion_time, now);
+        //printf("[rr_scheduler] next_preemption_time %d curr_tick %d: checking requests\n", next_preemtion_time, now);
         if(next_preemtion_time!=-1 && now < next_preemtion_time)
         {
-            printf("[rr_scheduler] handling requests during quantum for process %d at tick %d\n", currProcess->id, now);
+            //printf("[rr_scheduler] handling requests during quantum for process %d at tick %d\n", currProcess->id, now);
             handleRequests(&lag);
         }
         else
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
             // its quantum AFTER the mid-quantum handleRequests call returned, so
             // we must pull it into the internal requests queue here before checkReqs.
             handleRequests(&lag);
-            checkReqs();
+            // checkReqs();
         }
         // 1. check blocked processes
         checkBlockEnd();
@@ -154,15 +154,16 @@ int main(int argc, char *argv[])
             if (k > 0 && quantums_passed > 0 && quantums_passed % k == 0&& quantums_passed > last_print){
                 clear_recent();
                 last_print = quantums_passed;
-                printf("[rr_scheduler] cleared R bits at tick %d after %d quantums\n", now, quantums_passed);
+                //printf("[rr_scheduler] cleared R bits at tick %d after %d quantums\n", now, quantums_passed);
                 printAllFrames();
 
             }
                 
 
-            if (currProcess != NULL)
+            if (currProcess != NULL&&now >= context_switch_until)
             {
                 //printf("[rr_scheduler] granting sem to pid %d at tick %d\n", currProcess->pid, now);
+                printf("entered up at %d================\n",now);
                 union Semun s;
                 s.val = 0;
                 semctl(sem_id, 0, SETVAL, s);
@@ -173,6 +174,7 @@ int main(int argc, char *argv[])
         
     }
     //printf("[rr_scheduler] exiting main loop: readyEmpty=%d receivingProcesses=%d currProcess=%p\n", isEmpty(readyQueue), receivingProcesses, (void *)currProcess);
+    
     // upon termination release the clock resources.
     msgctl(req_msgq, IPC_RMID, NULL);
     msgctl(msgq_id, IPC_RMID, NULL);
