@@ -151,18 +151,9 @@ int main(int argc, char *argv[])
     {
 
         down(sem_id);
-        // printf("Process %d at time %d: remaining time = %d\n", id, getClk(), remainingtime);
-        printf("[process %d] remaining time = %d, req_index = %d, num_requests = %d, running_time = %d", id, remainingtime, req_index, num_requests, running_time);
-
-        if(req_index < num_requests)
-        {
-            printf(" Next request tick = %d", reqs_arr[req_index].tick);
-        }
-        printf("\n");
 
         if (remainingtime && req_index < num_requests && running_time == reqs_arr[req_index].tick)
         {
-            printf("[process %d] sending request at time %d: address=%s, operation=%c\n", id, getClk(), reqs_arr[req_index].address, reqs_arr[req_index].operation);
             reqs_arr[req_index].mtype = id;
             if (msgsnd(req_msgq, &reqs_arr[req_index], sizeof(request) - sizeof(long), 0) == -1)
             {
@@ -173,7 +164,6 @@ int main(int argc, char *argv[])
         }
         remainingtime--;
         *shmRT_addr = remainingtime;
-        
         running_time++;
     }
 
