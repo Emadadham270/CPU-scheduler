@@ -151,7 +151,6 @@ void runProcess(struct PCB *pcb, FILE *log_file)
         pcb->lState = RESUME;
         log_data(log_file, pcb);
         kill(pcb->pid, SIGCONT);
-        handleRequests(&lag);
     }
     pcb->state = 'R';
 }
@@ -212,7 +211,7 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
         {
             *next_preemtion_time = getClk() + q;
             quantums_passed++; // Increment quantum counter when a quantum expires
-            printf("fisrt [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
+            //printf("fisrt [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
 
             return;
         }
@@ -231,9 +230,9 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             (*currProcess)->state = 'W';
 
             quantums_passed++; // Increment quantum counter when a quantum expires
-            printf("second [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
+            //printf("second [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
             enqueue(readyQueue, (*currProcess));
-            
+            context_switch_until=getClk()+1;
             wait_N_secs(1, 1);
             *next_preemtion_time = getClk() + q;
 
@@ -414,7 +413,7 @@ void checkReqs()
                 {
                     currProcess->lState = STOP;
                     quantums_passed++; 
-                    printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
+                    //printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
                     currProcess->remaining_time = *shmRT_addr;
                     log_data(log_file, currProcess);
                     currProcess->last_stopped = getClk();
@@ -436,7 +435,10 @@ void checkReqs()
                 int id =requestOwner->id;
                 fault_handler(id,VA.page,1,currReq->address,currReq->operation);
                 if (requestOwner == currProcess && currProcess->pid > 0)
-                    kill(currProcess->pid, SIGSTOP);
+                    {kill(currProcess->pid, SIGSTOP);
+                        context_switch_until=getClk()+1;
+
+                    }
                 if (requestOwner == currProcess)
                 {
                     context_switch_until = getClk() + 1;
@@ -510,7 +512,7 @@ void handleFinishedProcesses()
             currProcess->state = 'F';
             context_switch_until = currProcess->finish_time + 1;
             quantums_passed++;
-            printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
+            //printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
 
             currProcess->remaining_time = *shmRT_addr;
             // log data to scheduler.log
