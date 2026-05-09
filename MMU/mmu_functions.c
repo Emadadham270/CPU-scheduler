@@ -315,7 +315,6 @@ void fault_handler(int pid, int page_num, int type, char * raw_address,char req_
         {
             continue;
         }
-
         int curr_cls = 2 * RAM[i].R + RAM[i].M;
         if (curr_cls < cls)
         {
@@ -384,7 +383,7 @@ void freePageTable(PCB *finishedProcess)
 
     for (int i = 0; i < 32; i++)
     {
-        if (RAM[i].process_id == finishedProcess->id && RAM[i].reserved == 0)
+        if (RAM[i].process_id == finishedProcess->id )
         {
             RAM[i].M          = 0;
             RAM[i].occupied   = 0;
@@ -392,6 +391,7 @@ void freePageTable(PCB *finishedProcess)
             RAM[i].pte        = NULL;
             RAM[i].R          = 0;
             RAM[i].vpage      = -1;
+            RAM[i].reserved = 0;
         }
     }
     
