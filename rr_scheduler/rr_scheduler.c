@@ -106,38 +106,21 @@ int main(int argc, char *argv[])
         if (now == last_tick)
             continue; // spin until next tick
 
-        // printf("[rr_scheduler] tick=%d last=%d receiving=%d readyEmpty=%d currProcess=%p currPid=%d\n",
-        //        now, last_tick, receivingProcesses, isEmpty(readyQueue), (void *)currProcess,
-        //        currProcess ? currProcess->pid : -1);
-
         last_tick = now;
 
         // 0. receive requests for the memory
-        //printf("[rr_scheduler] next_preemption_time %d curr_tick %d: checking requests\n", next_preemtion_time, now);
-        if(next_preemtion_time!=-1 && now < next_preemtion_time)
-        {
-            //printf("[rr_scheduler] handling requests during quantum for process %d at tick %d\n", currProcess->id, now);
-            handleRequests(&lag);
-        }
-        else
-        {
-            // Drain the current process's message queue one final time before the
-            // quantum boundary check.  The process may have sent a request during
-            // its quantum AFTER the mid-quantum handleRequests call returned, so
-            // we must pull it into the internal requests queue here before checkReqs.
-            handleRequests(&lag);
-            // checkReqs();
-        }
+        handleRequests(&lag);
+
         // 1. check blocked processes
         checkBlockEnd();
 
         // 2. Handle finished process (before algo, so we don't preempt a dead process)
         handleFinishedProcesses();
+
         if (context_switch_until == -1 || now >= context_switch_until)
         {
             context_switch_until = -1;
             // 3. Receive new arrivals synchronously with process_generator
-            // 3. Receive new arrivals synchronously with process_generator.
             // Only call when now strictly exceeds the last sync tick we already
             // received — avoids the double-call that consumed tick 1 at tick 0
             // and forced dispatch to tick 2.
@@ -145,35 +128,24 @@ int main(int argc, char *argv[])
                 receiveProcesses();
             
             // 4. Run scheduling algorithm (preempt → re-enqueue → dispatch)
-            // if (lag)
-            //     lag = 0;
-            // else 
             if (now > 0)
                 RR_algo(readyQueue, &currProcess, quantum, &next_preemtion_time, log_file);
             // Check if we should clear R bits every k quantums
             if (k > 0 && quantums_passed > 0 && quantums_passed % k == 0&& quantums_passed > last_print){
                 clear_recent();
                 last_print = quantums_passed;
-                //printf("[rr_scheduler] cleared R bits at tick %d after %d quantums\n", now, quantums_passed);
-                printAllFrames();
-
+                //printAllFrames();
             }
-                
 
             if (currProcess != NULL&&now >= context_switch_until)
             {
-                //printf("[rr_scheduler] granting sem to pid %d at tick %d\n", currProcess->pid, now);
-                printf("entered up at %d================\n",now);
                 union Semun s;
                 s.val = 0;
                 semctl(sem_id, 0, SETVAL, s);
                 up(sem_id);
             }
-        }
-        
-        
+        }     
     }
-    //printf("[rr_scheduler] exiting main loop: readyEmpty=%d receivingProcesses=%d currProcess=%p\n", isEmpty(readyQueue), receivingProcesses, (void *)currProcess);
     
     // upon termination release the clock resources.
     msgctl(req_msgq, IPC_RMID, NULL);

@@ -13,9 +13,6 @@
 #include <stdbool.h>
 #include <errno.h>
 
-// void destroyClk(bool terminateAll);
-// int getClk(void);
-
 void down(int sem)
 {
     struct sembuf op;
@@ -95,14 +92,13 @@ void initialize_PCB(PCB *pcb)
 {
     if (pcb->frame_index == -1)
     {
-        fault_handler(pcb->id, 0, 0, 0,'r');
-        fault_handler(pcb->id, 0, 2, 0,'r');
+        fault_handler(pcb->id, 0, 0, 0, 'r');
+        fault_handler(pcb->id, 0, 2, 0, 'r');
     }
 }
 
 void runProcess(struct PCB *pcb, FILE *log_file)
 {
-    //printf("Running process with id %d at time %d\n", pcb->id, getClk());
     *shmRT_addr = pcb->remaining_time;
     if (pcb->start_time == -1)
     {
@@ -130,7 +126,6 @@ void runProcess(struct PCB *pcb, FILE *log_file)
             char shm_str[16];
             char sem_str[16];
             char id_str[16];
-            //printf("Child process with id %d started at time %d\n", pcb->id, getClk());
 
             snprintf(runtime_str, sizeof(runtime_str), "%d", pcb->remaining_time);
             snprintf(shm_str, sizeof(shm_str), "%d", shmRT_id);
@@ -196,23 +191,11 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
 {
     if (*currProcess != NULL)
     {
-        /* Set up the preemption deadline when a process first starts its slice */
-        // if (*next_preemtion_time == -1)
-        // {
-        //     *next_preemtion_time = getClk() + q;
-        //     // quantums_passed++; // Increment quantum counter when a quantum expires
-        //     printf("[rr_scheduler] num of quantums passed for process %d: at time %d ========= first\n",  quantums_passed, getClk());
-
-        //     return;
-        // }
-        
         /* Check if the quantum has expired */
         if ((isEmpty(readyQueue) || readyQueue->front->pcb->arrival == getClk()) && getClk() >= *next_preemtion_time)
         {
             *next_preemtion_time = getClk() + q;
             quantums_passed++; // Increment quantum counter when a quantum expires
-            //printf("fisrt [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
-
             return;
         }
 
@@ -230,9 +213,8 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             (*currProcess)->state = 'W';
 
             quantums_passed++; // Increment quantum counter when a quantum expires
-            //printf("second [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
             enqueue(readyQueue, (*currProcess));
-            context_switch_until=getClk()+1;
+            context_switch_until = getClk() + 1;
             wait_N_secs(1, 1);
             *next_preemtion_time = getClk() + q;
 
@@ -241,16 +223,12 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             runProcess(*currProcess, log_file);
             return;
         }
-        
     }
     else if (!isEmpty(readyQueue))
     {
         *currProcess = dequeue(readyQueue);
-        //printf("calling run at time %d\n", getClk());
         runProcess(*currProcess, log_file);
         *next_preemtion_time = getClk() + q;
-        // quantums_passed++; // Increment quantum counter when a quantum expires
-        // printf(" third [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
         return;
     }
 }
@@ -293,9 +271,6 @@ void log_data(FILE *log_file, PCB *pcb)
     char stateStr[100];
     bool finishFlag = 0;
     int log_time = getClk();
-
-    // #At time x process y state arr w total z remain y wait k
-    // time: getClk(), process: id, state: lState, arr: arrival, total: runtime, remain: remaining_time, wait: waiting_time
 
     switch (pcb->lState)
     {
@@ -375,14 +350,13 @@ void handleRequests(int *lag)
         req->tick = getClk();
         enqueueReq(requests, req);
     }
-    //printf("[rr_scheduler::handleRequests] Received request at time %d: address=%d, operation=%c\n", getClk(), req.address, req.operation);
     checkReqs();
 }
 
-
 void checkReqs()
 {
-    if(!isEmptyReq(requests)){
+    if (!isEmptyReq(requests))
+    {
         request *pendingReq = peekReq(requests);
         PCB *requestOwner = get_process((int)pendingReq->mtype);
 
@@ -391,34 +365,25 @@ void checkReqs()
 
         VirtualAddress VA = parse_hexa_address(pendingReq->address);
         int result = check(requestOwner, VA.page, pendingReq->operation);
-        printf("page %d of process %d tick %d \n",VA.page,requestOwner->id,pendingReq->tick);
-        if(pendingReq->tick <= getClk())//
+        if (pendingReq->tick <= getClk()) //
         {
 
-            request *currReq= dequeueReq(requests);
-            //printf("processing page %d of process %d at time %d and result is %d \n",VA.page,currProcess->id,getClk(),result);
+            request *currReq = dequeueReq(requests);
 
-            if(result==1)
+            if (result == 1)
             {
-                //printf("Request is valid and page is in RAM.\n");
-                // *lag = 1;
-                // context_switch_until = getClk() + 1;
-                // if (next_preemtion_time != -1)
-                //     next_preemtion_time++;
-
             }
-            else if(result==0) {
-                //printf("Request is valid but page is not in RAM. Handling page fault...\n");
+            else if (result == 0)
+            {
                 if (requestOwner == currProcess)
                 {
                     currProcess->lState = STOP;
-                    quantums_passed++; 
-                    //printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
+                    quantums_passed++;
                     currProcess->remaining_time = *shmRT_addr;
                     log_data(log_file, currProcess);
                     currProcess->last_stopped = getClk();
                     currProcess->state = 'B';
-                    enqueue(blockQueue,currProcess);
+                    enqueue(blockQueue, currProcess);
                 }
                 else
                 {
@@ -432,13 +397,13 @@ void checkReqs()
                     enqueue(blockQueue, blockedProcess);
                     requestOwner = blockedProcess;
                 }
-                int id =requestOwner->id;
-                fault_handler(id,VA.page,1,currReq->address,currReq->operation);
+                int id = requestOwner->id;
+                fault_handler(id, VA.page, 1, currReq->address, currReq->operation);
                 if (requestOwner == currProcess && currProcess->pid > 0)
-                    {kill(currProcess->pid, SIGSTOP);
-                        context_switch_until=getClk()+1;
-
-                    }
+                {
+                    kill(currProcess->pid, SIGSTOP);
+                    context_switch_until = getClk() + 1;
+                }
                 if (requestOwner == currProcess)
                 {
                     context_switch_until = getClk() + 1;
@@ -446,7 +411,8 @@ void checkReqs()
                     next_preemtion_time = -1;
                 }
             }
-            else {
+            else
+            {
                 // Handle invalid address
                 free(currReq);
                 return;
@@ -458,88 +424,79 @@ void checkReqs()
 
 void checkBlockEnd()
 {
-    // if it takes much time to loop we might edit it to priority queue
-    PCBNode* node=blockQueue->front;
-    while(node)
+    PCBNode *node = blockQueue->front;
+    while (node)
     {
         PCBNode *next = node->next;
-        // to think about : should it un block at getClk() or  getClk()+1 ?
-        if(node->pcb->unblock_at<=getClk())
+        if (node->pcb->unblock_at <= getClk())
         {
-            PCB *pcb = dequeue_by_id(blockQueue,node->pcb->id);
+            PCB *pcb = dequeue_by_id(blockQueue, node->pcb->id);
             if (pcb != NULL)
             {
                 if (pcb->pending_page != -1 && pcb->pending_frame != -1 && memory_log != NULL)
                 {
-                    fprintf(memory_log,"At time %d disk address %d for process %d is loaded into memory page %d.\n",
+                    fprintf(memory_log, "At time %d disk address %d for process %d is loaded into memory page %d.\n",
                             getClk(), pcb->base + pcb->pending_page, pcb->id, pcb->pending_frame);
                     freeReserved(pcb->pending_frame);
                     pcb->pending_page = -1;
                     pcb->pending_frame = -1;
                 }
                 pcb->state = 'W';
-                enqueue(readyQueue,pcb);
+                enqueue(readyQueue, pcb);
             }
-            
         }
-        node=next;
+        node = next;
     }
-
 }
-/*
-
-
-*/
 
 void handleFinishedProcesses()
 {
     if (currProcess != NULL && processFinishedSignal)
+    {
+        int status;
+        processFinishedSignal = 0;
+
+        while (waitpid(currProcess->pid, &status, 0) == -1)
         {
-            int status;
-            processFinishedSignal = 0;
-
-            while (waitpid(currProcess->pid, &status, 0) == -1)
+            if (errno != EINTR)
             {
-                if (errno != EINTR)
-                {
-                    perror("waitpid failed");
-                    break;
-                }
+                perror("waitpid failed");
+                break;
             }
-
-            currProcess->finish_time = getClk();
-            currProcess->remaining_time = 0;
-            currProcess->state = 'F';
-            context_switch_until = currProcess->finish_time + 1;
-            quantums_passed++;
-            //printf("first [rr_scheduler] num of quantums passed for process %d: at time %d\n",  quantums_passed, getClk());
-
-            currProcess->remaining_time = *shmRT_addr;
-            // log data to scheduler.log
-            currProcess->lState = FINISH;
-            log_data(log_file, currProcess);
-
-            // Add WTA and Waiting to perf struct
-            float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
-            perf.avg_WTA += WTA;
-
-            // perform rolling standard deviation
-            // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-            perf.num_procs++;
-            float delta = WTA - perf.welford_mean_WTA;
-            perf.welford_mean_WTA += delta / perf.num_procs;
-            float delta2 = WTA - perf.welford_mean_WTA;
-            perf.M2_WTA += delta * delta2;
-
-            perf.avg_Waiting += currProcess->waiting_time;
-            perf.total_runtime += currProcess->runtime;
-            perf.finish_time = currProcess->finish_time;
-            dequeue_by_id(currentPCBs, currProcess->id);
-            freePageTable(currProcess);
-            free(currProcess);
-            currProcess = NULL;
-            next_preemtion_time = -1;
         }
+
+        currProcess->finish_time = getClk();
+        currProcess->remaining_time = 0;
+        currProcess->state = 'F';
+        context_switch_until = currProcess->finish_time + 1;
+        quantums_passed++;
+
+        currProcess->remaining_time = *shmRT_addr;
+        // log data to scheduler.log
+        currProcess->lState = FINISH;
+        log_data(log_file, currProcess);
+
+        // Add WTA and Waiting to perf struct
+        float WTA = (float)(currProcess->finish_time - currProcess->arrival) / (float)currProcess->runtime;
+        perf.avg_WTA += WTA;
+
+        // perform rolling standard deviation
+        // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+        perf.num_procs++;
+        float delta = WTA - perf.welford_mean_WTA;
+        perf.welford_mean_WTA += delta / perf.num_procs;
+        float delta2 = WTA - perf.welford_mean_WTA;
+        perf.M2_WTA += delta * delta2;
+
+        perf.avg_Waiting += currProcess->waiting_time;
+        perf.total_runtime += currProcess->runtime;
+        perf.finish_time = currProcess->finish_time;
+        dequeue_by_id(currentPCBs, currProcess->id);
+        freePageTable(currProcess);
+        free(currProcess);
+        currProcess = NULL;
+        next_preemtion_time = -1;
+    }
 }
 
 void receiveProcesses()
@@ -552,7 +509,6 @@ void receiveProcesses()
         {
             if (msg.mtype == 1)
             {
-                //printf("Received new process with id %d at time %d\n", msg.id, getClk());
                 struct PCB *pcb = (struct PCB *)malloc(sizeof(struct PCB));
                 *pcb = createPCB(msg);
                 pcb->frame_index = -1;

@@ -1,10 +1,5 @@
 #include "mmu.h"
-
-// #include <stdio.h>
 #include <stdlib.h>
-// #include <sys/types.h>
-
-// #include "../data structs/structs.h"
 #include "../rr_scheduler/rr_scheduler.h"
 
 Frame RAM[MEM_SIZE];
@@ -25,35 +20,6 @@ void set_memory_log(FILE *log)
 // parse the virtual address and return the page number and offset
 // used at rr_sched 322
 
-VirtualAddress parse_virtual_address(int address)
-{
-    int digits[32] = {0};
-    int count = 0;
-    int addr = 0;
-
-    if (address == 0)
-    {
-        VirtualAddress zero_va;
-        zero_va.page = 0;
-        zero_va.offset = 0;
-        return zero_va;
-    }
-
-    while (address != 0 && count < 32)
-    {
-        digits[count++] = address % 10;
-        address /= 10;
-    }
-
-    for (int i = count - 1; i >= 0; --i)
-        addr = (addr << 1) | digits[i];
-
-    // split into page and offset
-    VirtualAddress va;
-    va.page = addr >> 4;    // upper 6 bits
-    va.offset = addr & 0xF; // lower 4 bits
-    return va;
-}
 // check wether the address is valid and if it is in RAM or not
 short check(PCB *pcb, int vpt_address, char req_type)
 {
@@ -107,7 +73,6 @@ VirtualAddress parse_hexa_address(const char *address)
 void put_page_in_frame(int pid, int page_number, int frame_index,char req_type)
 {
     fprintf(memory_log, "Free Physical page %d allocated\n", frame_index);
-    printf("At time %d page %d of pid %d was placed at frame %d\n",getClk(),page_number,pid,frame_index);
     PCB *owner = get_process(pid);
     if (owner == NULL || owner->frame_index < 0)
         return;
@@ -153,7 +118,6 @@ PCB *get_process(int id)
 void define_page_table(int pid, int frame_index)
 {
     fprintf(memory_log, "Free Physical page %d allocated\n", frame_index);
-    printf("At time %d page table of %d was placed at frame %d\n",getClk(),pid,frame_index);
 
     PCB *owner = get_process(pid);
 
@@ -181,7 +145,6 @@ void define_page_table(int pid, int frame_index)
 }
 
 // swap the page in the frame with the new page and update the page table of the owner process
-
 void swap(int id, int frameIndex, int page, int type,char req_type)
 {
     
@@ -199,13 +162,11 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
         RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].R = 0;
         RAM[old_owner->frame_index].pte[RAM[frameIndex].vpage].M = 0;
     }
-    printf("\nswaping framIndex %d from process %d to process %d\n",frameIndex,old_owner->id,id);
     // check if you load a page table or a normal data
 
     if (type == 0)
     {
         define_page_table(id, frameIndex);
-        //fprintf(memory_log, "Swapping out page %d to disk\n", frameIndex);
         return;
     }
 
@@ -232,7 +193,6 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
     {
         page -= 64;
     }
-    printf("At time %d page %d of pid %d was placed at frame %d\n",getClk(),page,id,frameIndex);
     RAM[owner->frame_index].pte[page].valid = 1;
     RAM[owner->frame_index].pte[page].frame_address = frameIndex;
     RAM[owner->frame_index].pte[page].R = 1;
@@ -261,11 +221,9 @@ void swap(int id, int frameIndex, int page, int type,char req_type)
 // handle faults of reserving data page
 void fault_handler(int pid, int page_num, int type, char * raw_address,char req_type)
 {
-    //printf("[fault_handler] Handling page fault for process %d at time %d\n", pid, getClk());
     int cls = 4;
     int victim_index = -1;
     PCB *owner = get_process(pid);
-    printf("At time %d page %d of pid %d want to be placed\n",getClk(),page_num,pid);
 
     if (type == 1 && owner != NULL && page_num < 64)
     {
@@ -279,7 +237,6 @@ void fault_handler(int pid, int page_num, int type, char * raw_address,char req_
 
     for (int i = 0; i < MEM_SIZE; i++)
     {
-        //printf("i is %d and memSize is %d\n",i,MEM_SIZE);
         if (!RAM[i].occupied)
         {
             if (type == 0)
@@ -292,9 +249,7 @@ void fault_handler(int pid, int page_num, int type, char * raw_address,char req_
                 put_page_in_frame(pid,page_num,i,req_type);
             }
 
-          //  if (type == 1 && memory_log)
-               // fprintf(memory_log, "Free Physical page %d allocated\n", i);
-
+      
             if (type == 1 && owner != NULL)
             {
                 owner->pending_page = page_num;
@@ -308,9 +263,7 @@ void fault_handler(int pid, int page_num, int type, char * raw_address,char req_
             }
             return;
         }
-        //printf("frame %d reserve=%d at tick %d \n",i,RAM[i].reserved,getClk());
-       // printf("\nAt time %d The victim frameIndex is %d \n",getClk(),victim_index);
-
+       
         if (RAM[i].pte ||RAM[i].reserved) // pte != null ,that means it is a page table
         {
             continue;
@@ -320,7 +273,6 @@ void fault_handler(int pid, int page_num, int type, char * raw_address,char req_
         {
             cls = curr_cls;
             victim_index = i;
-            //printf("\nAt time %d The victim frameIndex is %d \n",getClk(),victim_index);
         }
     }
 
@@ -330,7 +282,6 @@ void fault_handler(int pid, int page_num, int type, char * raw_address,char req_
 
 void clear_recent()
 {
-    printf("[ clear_recent ] Clearing R bits at time %d\n", getClk());
 
     for (int i = 0; i < MEM_SIZE; i++)
     {
@@ -376,6 +327,7 @@ void freePageTable(PCB *finishedProcess)
     RAM[frame].M          = 0;
     RAM[frame].occupied   = 0;
     RAM[frame].process_id = -1;
+    free(RAM[frame].pte);
     RAM[frame].pte        = NULL;
     RAM[frame].R          = 0;
     RAM[frame].reserved   = 0;
@@ -397,19 +349,19 @@ void freePageTable(PCB *finishedProcess)
     
 }
 
-void printAllFrames()
-{
-    printf("Current RAM state at time %d:\n", getClk());
-    for (int i = 0; i < MEM_SIZE; i++)
-    {
-        if (RAM[i].occupied)
-        {
-            printf("Frame %d: PID=%d, R=%d, M=%d, Reserved=%d, VPage=%d\n",
-                   i, RAM[i].process_id, RAM[i].R, RAM[i].M, RAM[i].reserved, RAM[i].vpage);
-        }
-        else
-        {
-            printf("Frame %d: Free\n", i);
-        }
-    }
-}
+// void printAllFrames()
+// {
+   
+//     for (int i = 0; i < MEM_SIZE; i++)
+//     {
+//         if (RAM[i].occupied)
+//         {
+//             printf("Frame %d: PID=%d, R=%d, M=%d, Reserved=%d, VPage=%d\n",
+//                    i, RAM[i].process_id, RAM[i].R, RAM[i].M, RAM[i].reserved, RAM[i].vpage);
+//         }
+//         else
+//         {
+//             printf("Frame %d: Free\n", i);
+//         }
+//     }
+// }
