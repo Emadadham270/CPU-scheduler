@@ -31,7 +31,7 @@ extern perfVars perf;
 extern FILE *log_file, *perf_file;
 extern int lag;
 extern int last_received_sync;
-
+extern int checked;
 
 struct PCB createPCB(processData p);
 struct PerfVars initialize_perf();
