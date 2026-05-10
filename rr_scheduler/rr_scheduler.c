@@ -20,6 +20,7 @@ int context_switch_until = -1;
 int last_print = -1;
 perfVars perf;
 FILE *log_file, *perf_file;
+int checked=0;
 
 void onProcessFinished(int signum)
 {
@@ -112,7 +113,14 @@ int main(int argc, char *argv[])
         handleRequests(&lag);
 
         // 1. check blocked processes
+
+        checked=0;
+       if(next_preemtion_time !=now ||(next_preemtion_time == now && !currProcess))
+       {
+ 
         checkBlockEnd();
+        checked=1;
+        }
 
         // 2. Handle finished process (before algo, so we don't preempt a dead process)
         handleFinishedProcesses();
@@ -144,7 +152,9 @@ int main(int argc, char *argv[])
                 semctl(sem_id, 0, SETVAL, s);
                 up(sem_id);
             }
-        }     
+        } 
+        if(checked==0 && getClk()==now) 
+            checkBlockEnd();
     }
     
     // upon termination release the clock resources.

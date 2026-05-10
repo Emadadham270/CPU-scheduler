@@ -1,2 +1,4 @@
-#time address r/w
-0 0x00 w
+#time	addressInBinary	r/w
+0	0x00	w
+3	0x10	r
+6	0x20	w
