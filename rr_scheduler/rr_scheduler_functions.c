@@ -215,7 +215,9 @@ void RR_algo(Queue *readyQueue, struct PCB **currProcess, int q,
             quantums_passed++; // Increment quantum counter when a quantum expires
             enqueue(readyQueue, (*currProcess));
             context_switch_until = getClk() + 1;
-            if(!checked)checkBlockEnd();
+            if(!checked)
+            {checkBlockEnd();
+            checked =1 ;}
             wait_N_secs(1, 1);
             *next_preemtion_time = getClk() + q;
 
