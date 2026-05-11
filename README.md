@@ -523,12 +523,12 @@ CPU-scheduler/
 
 ## Development Team
 
-| Name | Role |
-|---|---|
-| Emad Adham | Scheduling algorithms, IPC design, RR scheduler implementation |
-| George Bahig | Dual-CPU FCFS, sub-scheduler, work stealing, load balancing |
-| Mariam Mohammed | Memory management unit, NRU page replacement, page fault handling |
-| Mariam Sameh | Process lifecycle, logging infrastructure, performance reporting |
+| Name |
+|---|
+| Emad Adham |
+| George Bahig |
+| Mariam Mohammed |
+| Mariam Sameh |
 
 ---
 
